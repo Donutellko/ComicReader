@@ -7,6 +7,7 @@ package xyz.camelteam.comicreader;
 
 public class Comic {
     String name, description, link;
+    int curpage = 0;
     Page[] pages;
 
     public Comic(String name, String description, String link, Page[] pages) {
@@ -18,9 +19,9 @@ public class Comic {
 
     public static class Page {
         int number;
-        String name, description, link, local_path;
+        String name, description, link, link_next, local_path;
 
-        public Page(int number, String name, String description, String link, String local_path) {
+        public Page(int number, String name, String description, String link, String link_next, String local_path) {
             this.number = number;
             this.name = name;
             this.description = description;
@@ -29,7 +30,7 @@ public class Comic {
         }
 
         public Page(String html) {
-
+            // TODO: распарсить и сохранить то, что нужно
         }
     }
 }

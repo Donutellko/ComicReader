@@ -1,5 +1,9 @@
 package xyz.camelteam.comicreader;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.AsyncTask;
+
 import com.google.gson.Gson;
 
 import java.io.BufferedReader;
@@ -7,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -62,4 +67,20 @@ public class DataWorker {
             //TODO:
         }
     }
+
+    public static Comic getComic(Context context /*getApplicationContext()*/, String name) {
+        SharedPreferences sp = context.getSharedPreferences("Comics", 0);
+        String json = sp.getString(name, "");
+        if (json.length() == 0)
+            return null;
+
+        Comic comic =  new Gson().fromJson(json, Comic.class);
+        update(comic);
+        return comic;
+    }
+
+    private static void update(Comic comic) {
+        // TODO: найти ссылку
+    }
+
 }

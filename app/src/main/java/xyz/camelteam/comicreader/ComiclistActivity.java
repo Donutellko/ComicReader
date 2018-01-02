@@ -1,5 +1,7 @@
 package xyz.camelteam.comicreader;
 
+import android.content.Intent;
+import android.provider.ContactsContract;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -38,6 +40,8 @@ public class ComiclistActivity extends AppCompatActivity {
     }
 
     private void loadComic(String name) {
-        // TODO:
+        Intent intent = new Intent(ComiclistActivity.this, PageActivity.class);
+        intent.putExtra("Comic name", name);
+        startActivity(intent);
     }
 }

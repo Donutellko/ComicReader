@@ -5,12 +5,16 @@ import android.os.Bundle;
 import android.view.Menu;
 
 public class PageActivity extends AppCompatActivity {
+    Comic current;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_page);
 
+        String name = getIntent().getStringExtra("Comic name");
+        current = DataWorker.getComic(getApplicationContext(), name);
+
+        setContentView(R.layout.activity_page);
 
     }
 
