@@ -6,17 +6,7 @@
     <item
         android:id="@+id/action_reload"
         android:orderInCategory="100"
-        android:title="Reload page"
-        app:showAsAction="never"/>
-    <item
-        android:id="@+id/action_zoomin"
-        android:orderInCategory="100"
-        android:title="Zoom in"
-        app:showAsAction="never"/>
-    <item
-        android:id="@+id/action_zoomout"
-        android:orderInCategory="100"
-        android:title="Zoom out"
+        android:title="Reload"
         app:showAsAction="never"/>
     <item
         android:id="@+id/action_day_night"
@@ -24,9 +14,9 @@
         android:title="Day/Night"
         app:showAsAction="never"/>
     <item
-        android:id="@+id/action_open"
+        android:id="@+id/filter"
         android:orderInCategory="100"
-        android:title="Open in browser"
+        android:title="Filter..."
         app:showAsAction="never"/>
     <item
         android:id="@+id/action_quit"

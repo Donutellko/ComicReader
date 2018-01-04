@@ -2,15 +2,16 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/page"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
 
     <ProgressBar
-        android:id="@+id/progressBar2"
+        android:id="@+id/page_progress"
         style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
-        android:layout_height="10dp"
+        android:layout_height="wrap_content"
         android:layout_gravity="top"
         android:max="1000"
         android:minHeight="10dp"
@@ -18,31 +19,37 @@
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:layout_height="35dp"
+        android:orientation="horizontal"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp">
 
         <Button
             android:id="@+id/prev"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="2"
-            android:text="Previous" />
+            android:text="Previous"
+            android:textSize="12sp" />
 
         <EditText
-            android:id="@+id/editText"
+            android:id="@+id/page_number"
             android:layout_width="150dp"
             android:layout_height="wrap_content"
             android:ems="10"
+            android:focusedByDefault="false"
             android:inputType="number"
             android:text="237"
-            android:textAlignment="center" />
+            android:textAlignment="center"
+            android:textSize="12sp" />
 
         <Button
             android:id="@+id/next"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="2"
-            android:text="Next" />
+            android:text="Next"
+            android:textSize="12sp" />
     </LinearLayout>
 
     <ScrollView
@@ -66,12 +73,13 @@
                 android:textStyle="bold" />
 
             <TextView
+                android:id="@+id/page_desc"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="I feel like we shouldn't consider bonobos as sapient until they can write something about human life as a sunset or the end of a long road or something." />
 
             <ImageView
-                android:id="@+id/image"
+                android:id="@+id/page_image"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_margin="0dp"

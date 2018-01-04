@@ -9,6 +9,8 @@ import java.util.function.Consumer;
  * Здесь происходит обработка HTML страниц: находжение на них ссылок, изображений и прочего, загрузка файлов и самого кода HTML
  */
 
+/** TODO! ЭТО КЛАСС БУДЕТ ПЕРЕНЕСЁН В СЕРВЕРНУЮ ЧАСТЬ! **/
+
 public class HtmlWorker {
 
     public static void cleaner(List<String> source, List<String> ignore) {
@@ -20,7 +22,7 @@ public class HtmlWorker {
                 }
     }
 
-    // убирает лишние символы (повторяющиеся пробелы, табуляции...), заменяя их на одинарный пробел
+    /** Убирает лишние символы (повторяющиеся пробелы, табуляции...), заменяя их на одинарный пробел */
     public static String clean(String sourceStr) {
         char[] source = sourceStr.toCharArray();
         StringBuilder result = new StringBuilder(source.length / 2);

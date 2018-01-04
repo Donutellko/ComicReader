@@ -1,8 +1,14 @@
 package xyz.camelteam.comicreader;
 
+import android.graphics.Bitmap;
 import android.os.AsyncTask;
 
+import java.io.BufferedReader;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,42 +19,67 @@ import java.util.List;
 
 public class HttpWorker {
 
-    // Сохраняет по пути картинку по ссылке
+    /** Не вызывать из основного потока **/
+    static String getHtml(String url_s) throws IOException {
+        String result = null;
+
+        BufferedReader reader = null;
+        URLConnection uc = null;
+
+        try {
+            URL url = new URL(url_s);
+            uc = url.openConnection();
+            uc.setConnectTimeout(1000);
+            uc.connect();
+            reader = new BufferedReader(new InputStreamReader(uc.getInputStream()));
+            StringBuilder buffer = new StringBuilder();
+            int read;
+            char[] chars = new char[1024];
+            while ((read = reader.read(chars)) != -1)
+                buffer.append(chars, 0, read);
+
+            result = buffer.toString();
+        } finally {
+            if (reader != null)
+                reader.close();
+        }
+
+        return result;
+    }
+
+    // Сохраняет картинку по ссылке
     public static void saveImage(String url, String path) {
-        //TODO:
+        new BasicImageDownloader(new ImageDownloader(path)).download(url, false);
     }
 
-    // передаёт HTML-код страницы по переданному адресу
-    public static void getHtml(String url){
-        // TODO
-    }
-}
+    static class ImageDownloader implements BasicImageDownloader.OnImageLoaderListener {
+        String path;
 
-class HtmlLoader extends AsyncTask<String, Void, List<String>> {
+        public ImageDownloader(String path) {
+            this.path = path;
+        }
 
-    @Override
-    protected void onPreExecute() { // выполняется перед doInBackground, имеет доступ к UI
-        super.onPreExecute();
-    }
+        @Override
+        public void onError(BasicImageDownloader.ImageError error) {
+            //TODO
+        }
 
-    @Override
-    protected List<String> doInBackground(String... urls) {  // выполняется в фоне, не имеет доступ к UI
-        List<String> result = new ArrayList<>();
+        @Override
+        public void onProgressChange(int percent) {
+            // нужен ли ??
+        }
 
-        for (String url : urls) {
+        @Override
+        public void onComplete(Bitmap result) {
+            FileOutputStream out = null;
             try {
-                result.add(DataWorker.getFromUrl(url));
+                out = new FileOutputStream(path);
+                result.compress(Bitmap.CompressFormat.PNG, 100, out);
             } catch (IOException e) {
                 e.printStackTrace();
+            } finally {
+                if (out != null) { try { out.close(); } catch (IOException e) { e.printStackTrace(); } }
             }
         }
-        return null;
-    }
-
-    @Override
-    protected void onPostExecute(List<String> result) { // выполняется после doInBackground, имеет доступ к UI
-        DataWorker.saveHtmls(result);
-        // TODO: использовать как-то, наверн...
-        super.onPostExecute(result);
     }
 }
