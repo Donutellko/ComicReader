@@ -2,6 +2,7 @@ package xyz.camelteam.comicreader;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.support.constraint.solver.widgets.ConstraintWidget;
 import android.support.v7.app.AppCompatActivity;
@@ -9,6 +10,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManager;
@@ -24,6 +26,7 @@ import static java.lang.String.valueOf;
 
 public class PageActivity extends AppCompatActivity {
     Comic current;
+    private static Bitmap strip_placeholder;
 
     /** Activity отображения страницы комикса
      * В Intent передаётся название комикса, который нужно открыть: @see ComiclistActivity#openComic(String)
@@ -32,6 +35,8 @@ public class PageActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_page);
+
+        strip_placeholder = BitmapFactory.decodeResource(getResources(), R.mipmap.strip_placeholder);
 
         String name = getIntent().getStringExtra("Comic name");
         current = DataWorker.getComic(getApplicationContext(), name);
@@ -72,6 +77,25 @@ public class PageActivity extends AppCompatActivity {
         return super.onCreateOptionsMenu(menu);
     }
 
+    /** Отвечает за обработку выбора элемента меню на данной активности
+     * Возможные itemId (R.id.action_*):
+     * * reload (обновить список), quit (выйти),
+     * * day_night (переключение внешнего вида), filter (открыть панель с фильтрами для списка комиксов)
+     */
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_quit: System.exit(0); break;
+            case R.id.action_reload: //TODO
+            case R.id.action_day_night: //TODO
+            case R.id.action_open: //TODO
+            case R.id.action_zoomin: //TODO
+            case R.id.action_zoomout: //TODO
+            default: Log.e("Not working menu entry!", "Код для этого пункта меню ещё не написан");
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
     /** Заполняет полученный View информацией о текущей странице загружает туда Bitmap */
     static class AsyncPageFiller extends AsyncTask {
         Context context;
@@ -79,12 +103,14 @@ public class PageActivity extends AppCompatActivity {
         Comic comic;
         Comic.Page page;
         Bitmap bm;
+        ImageView imageView;
 
         public AsyncPageFiller(View view, Comic comic, Context context) {
             this.context = context;
             this.view = view;
             this.comic = comic;
             page = comic.getPage();
+            imageView = view.findViewById(R.id.page_image);
         }
 
         @Override
@@ -95,12 +121,13 @@ public class PageActivity extends AppCompatActivity {
 
             ((ProgressBar) view.findViewById(R.id.page_progress)).setProgress(comic.curpage);
             ((ProgressBar) view.findViewById(R.id.page_progress)).setMax(comic.pages.length - 1);
+            imageView.setImageBitmap(strip_placeholder);
             super.onPreExecute();
         }
 
         @Override
         protected Object doInBackground(Object[] objects) {
-            String path = page.image_path = context.getExternalFilesDir("strip").getAbsolutePath() + "/" + comic.shortName + "/" + page.name;
+            String path = page.image_path = context.getExternalFilesDir("strip").getAbsolutePath() + "/" + comic.shortName + "/" + page.name + ".png";
             Log.i("Loading image", "for " + page.name + ": " + path);
 
             bm = DataWorker.getImage(path); // Пробуем получить из локального хранилища
@@ -108,13 +135,14 @@ public class PageActivity extends AppCompatActivity {
                 HttpWorker.saveImage(page.image_link, path);
                 bm = DataWorker.getImage(path);
             }
-
             return null;
         }
 
         @Override
         protected void onPostExecute(Object o) {
-            ((ImageView) view.findViewById(R.id.page_image)).setImageBitmap(bm);
+            if (bm != null) {
+                imageView.setImageBitmap(bm);
+            }
             super.onPostExecute(o);
         }
     }

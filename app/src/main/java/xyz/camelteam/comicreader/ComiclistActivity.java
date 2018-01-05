@@ -42,6 +42,10 @@ public class ComiclistActivity extends AppCompatActivity {
 
         logo_placeholder = BitmapFactory.decodeResource(getResources(), R.mipmap.logo_placeholder);
         listView.setOnItemClickListener((parent, view, position, id) -> openComic(comics[position].shortName));
+        listView.setOnLongClickListener(v -> {
+            //TODO: Открывать меню с предложением: удалить комикс из памяти, загрузить в память полностью, отметить как избранное
+            return false;
+        });
     }
 
     /** Открывает PageActivity
@@ -91,7 +95,6 @@ public class ComiclistActivity extends AppCompatActivity {
             this.comics = comics;
         }
 
-
         public ComiclistAdapter(Comic[] comics, int[] filter) {
             List<Comic> tmp = new ArrayList<>(comics.length);
             for (Comic comic : comics) {
@@ -109,9 +112,10 @@ public class ComiclistActivity extends AppCompatActivity {
          */
         @Override
         public View getView(int position, View convertView, ViewGroup container) {
-            if (convertView == null) {
-                convertView = getLayoutInflater().inflate(R.layout.comiclist_item, container, false);
-            }
+            if (convertView == null) convertView = getLayoutInflater().inflate(R.layout.comiclist_item, container, false);
+
+            ImageView icon = convertView.findViewById(R.id.comic_icon);
+            icon.setImageBitmap(logo_placeholder);
 
             Comic c = (Comic) getItem(position);
 
@@ -127,7 +131,7 @@ public class ComiclistActivity extends AppCompatActivity {
             ((TextView) convertView.findViewById(R.id.comic_name)).setText(name);
             ((TextView) convertView.findViewById(R.id.comic_info)).setText(desc);
 
-            new AsyncLogoSetter(convertView.findViewById(R.id.comic_icon), c, getApplicationContext()).execute();
+            new AsyncLogoSetter(icon, c, getApplicationContext()).execute();
 
             return convertView;
         }
@@ -182,8 +186,6 @@ public class ComiclistActivity extends AppCompatActivity {
         protected void onPostExecute(Object o) {
             if (bm != null)
                 imageView.setImageBitmap(bm);
-            else
-                imageView.setImageBitmap(logo_placeholder);
             super.onPostExecute(o);
         }
     }

@@ -72,12 +72,6 @@
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/page_desc"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="I feel like we shouldn't consider bonobos as sapient until they can write something about human life as a sunset or the end of a long road or something." />
-
             <ImageView
                 android:id="@+id/page_image"
                 android:layout_width="match_parent"
@@ -87,6 +81,13 @@
                 android:contentDescription="Comic page image"
                 android:padding="0dp"
                 app:srcCompat="@raw/test_page" />
+
+            <TextView
+                android:id="@+id/page_desc"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="I feel like we shouldn't consider bonobos as sapient until they can write something about human life as a sunset or the end of a long road or something."
+                android:textSize="16sp" />
 
         </LinearLayout>
     </ScrollView>

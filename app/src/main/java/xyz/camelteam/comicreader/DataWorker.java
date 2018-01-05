@@ -77,16 +77,8 @@ public class DataWorker {
     }
 
     /** Загружает картинку из памяти устройства */
-    public static Bitmap getImage(String path, Context... context) {
-        // TODO
-        // Temporary:
-        Bitmap bm = null;
-
-        if ((path == null || path.length() == 0) && context.length > 0)
-            bm = BitmapFactory.decodeResource(context[0].getResources(), R.raw.test_page);
-        else if (path != null)
-            bm = BasicImageDownloader.readFromDisk(new File(path));
-        return bm;
+    public static Bitmap getImage(String path) {
+        return BasicImageDownloader.readFromDisk(new File(path));
     }
 
     /** Докачивает нужные страницы с сервера, если изменился timestamp */

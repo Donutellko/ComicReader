@@ -1,9 +1,12 @@
 package xyz.camelteam.comicreader;
 
 import android.graphics.Bitmap;
+import android.media.Image;
 import android.os.AsyncTask;
+import android.widget.ImageView;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -72,14 +75,19 @@ public class HttpWorker {
         @Override
         public void onComplete(Bitmap result) {
             FileOutputStream out = null;
+            File file = new File(path);
+            if (!file.exists())
+                new File(file.getParent()).mkdirs();
+
             try {
-                out = new FileOutputStream(path);
+                out = new FileOutputStream(file.getAbsolutePath());
                 result.compress(Bitmap.CompressFormat.PNG, 100, out);
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
                 if (out != null) { try { out.close(); } catch (IOException e) { e.printStackTrace(); } }
             }
+
         }
     }
 }
