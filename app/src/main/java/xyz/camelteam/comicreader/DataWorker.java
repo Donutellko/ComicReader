@@ -10,6 +10,7 @@ import com.google.gson.Gson;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -26,34 +27,41 @@ import java.util.List;
  */
 public class DataWorker {
 
-    // TODO: Временный (или дефолтный) набор комиков
-    static Comic[] comicsList = {
-            new Comic("Saturday Morning Breakfast Cereal"     , "SMBC"     , "EN", "page 237 out of 20!8" , "smbc-comics.com"                        , null, "[logourl]", 0L),
-            new Comic("XKCD"                                  , "XKCD"     , "EN", "page 276 out of 6543" , "xkcd.com"                               , null, "[logourl]", 0L),
-            new Comic("XKCD"                                  , "XKCD"     , "RU", "page 276 out of 6543" , "xkcd.ru"                                , null, "[logourl]", 0L),
-            new Comic("Ctrl+Alt+Del"                          , "CAD"      , "EN", "page 271 out of 271"  , "cad-comic.com"                          , null, "[logourl]", 0L),
-            new Comic("Freefall"                              , "Freefall" , "RU", "page 2065 out of 2066", "comicslate.org/sci-fi/freefall"         , null, "[logourl]", 0L),
-            new Comic("GaMERCaT"                              , "GamerCat" , "RU", "page 271 out of 271"  , "comicslate.org/gamer/lwhag"             , null, "[logourl]", 0L),
-            new Comic("Living with hipstergirl and gamergirl" , "LWHAG"    , "RU", "page 271 out of 271"  , "comicslate.org/gamer/gamercat"          , null, "[logourl]", 0L),
-            new Comic("Sequential Art"                        , "SeqArt"   , "EN", "page 271 out of 271"  , "collectedcurios.com/sequentialart.php"  , null, "[logourl]", 0L),
-            new Comic("Sabrina Online"                        , "Sabrina"  , "EN", "page 271 out of 271"  , "sabrina-online.com"                     , null, "[logourl]", 0L),
-
+    @Deprecated
+    final static String[] descriptions = {
+            "by Zach Weinersmith. Recurring themes include atheism, God, superheroes, romance, dating, science, research, parenting and the meaning of life.", // SMBC
+            "by Randall Munroe. A webcomic of romance, sarcasm, math, and language.", //XKCD
+            "by Рэндел Манро. Это вебкомикс о любви, сарказме, математике и языке. ", //XKCD
+            "by Mark Stanley. Научно-фантастический веб-комикс о злоключениях экипажа космического корабля «Свирепая курица»", // Freefall
+            "by Mark Stanley.  Set on a planet in the early stages of terraforming, the strip deals with the antics of alien spaceship \"captain\" Sam Starfall, his robot friend Helix, and their Bowman's Wolf engineer Florence Ambrose.", // Eng Freefall
+            "by Tim Buckley. A gaming-related webcomic and animated series.", //CAD
+            "Webcomics about life, science and other stuff I guess.", //TAY
+            "He's a cat. He plays video games.",//Gamercat
+            "He's a cat. He plays video games.",//Gamercat
+            "by Jago Dibuja.", // LWHAG
+            "page 271 out of 271", // SeqArt
+            "page 271 out of 271", // Sabrina
     };
 
-    /** Возвращает массив объектов комикса из JSON */
-    public static Comic[] comicsFromJson(String source) {
-        return new Gson().fromJson(source, Comic[].class);
-    }
+    final static String server_url = "http://donutellko.azurewebsites.net/";
 
-    /** Возвращает объект комикса из JSON */
-    public static Comic comicFromJson(String source) {
-        return new Gson().fromJson(source, Comic.class);
-    }
+    // Временный (или дефолтный, например) набор комиков
+    @Deprecated
+    static Comic[] comicsList = {
+            new Comic("Saturday Morning Breakfast Cereal"     , "SMBC"     , "EN", descriptions[0 ], "smbc-comics.com"                       ),
+            new Comic("XKCD"                                  , "XKCD"     , "EN", descriptions[1 ], "xkcd.com"                              ),
+            new Comic("XKCD"                                  , "XKCD"     , "RU", descriptions[2 ], "xkcd.ru"                               ),
+            new Comic("Freefall"                              , "Freefall" , "RU", descriptions[3 ], "comicslate.org/sci-fi/freefall"        ),
+            new Comic("Freefall"                              , "Freefall" , "EN", descriptions[4 ], "http://freefall.purrsia.com"           ),
+            new Comic("Ctrl+Alt+Del"                          , "CAD"      , "EN", descriptions[5 ], "cad-comic.com"                         ),
+            new Comic("The Awkward Yeti"                      , "TAY"      , "EN", descriptions[6 ], "theawkwardyeti.com/"                   ),
+            new Comic("The GaMERCaT"                          , "GaMERCaT" , "RU", descriptions[7 ], "comicslate.org/gamer/gamercat"         ),
+            new Comic("The GaMERCaT"                          , "GaMERCaT" , "EN", descriptions[8 ], "thegamercat.com/"                      ),
+            new Comic("Living with hipstergirl and gamergirl" , "LWHAG"    , "RU", descriptions[9 ], "comicslate.org/gamer/lwhag"            ),
+            new Comic("Sequential Art"                        , "SeqArt"   , "EN", descriptions[10], "collectedcurios.com/sequentialart.php" ),
+            new Comic("Sabrina Online"                        , "Sabrina"  , "EN", descriptions[11], "sabrina-online.com"                    ),
 
-    /** Возвращает сериализованный кортеж из переданных комиксов */
-    public static String comicsToJson(Comic[] comics) {
-        return new Gson().toJson(comics);
-    }
+    };
 
     /** Возвращает сериализованный объект комикса */
     public static String comicToJson(Comic comics) {
@@ -65,17 +73,20 @@ public class DataWorker {
         Comic[] simpleComics = comics.clone();
         for (int i = 0; i < comics.length; i++)
             simpleComics[i].pages = null;
-        return comicsToJson(simpleComics);
+        return Comic.toJson(simpleComics);
     }
 
     /** Загружает картинку из памяти устройства */
     public static Bitmap getImage(String path, Context... context) {
         // TODO
         // Temporary:
-        if (path == null || path.length() == 0)
-            return BitmapFactory.decodeResource(context[0].getResources(), R.mipmap.test_page);
-        else
-            return BasicImageDownloader.readFromDisk(new File(path));
+        Bitmap bm = null;
+
+        if ((path == null || path.length() == 0) && context.length > 0)
+            bm = BitmapFactory.decodeResource(context[0].getResources(), R.raw.test_page);
+        else if (path != null)
+            bm = BasicImageDownloader.readFromDisk(new File(path));
+        return bm;
     }
 
     /** Докачивает нужные страницы с сервера, если изменился timestamp */
@@ -83,13 +94,13 @@ public class DataWorker {
         // TODO:
         // temporary:
         comic.pages = new Comic.Page[]{
-                new Comic.Page(1, "Licorice", "Not to mention the difficulty of synchronizing your efforts with my once-per-solstice state of carnal arousal!", "https://www.smbc-comics.com/comic/licorice", "https://www.smbc-comics.com/comics/1450454206-20151218.png"),
-                new Comic.Page(2, "Quantum mechanics is weird", "And lo, The Lord spake, saying, Let the fundamental equations contain an imaginary component.", "https://www.smbc-comics.com/comic/quantum-mechanics-is-weird", "https://www.smbc-comics.com/comics/1450539983-20151219.png"),
-                new Comic.Page(3, "Dad jokes", "I feel like we shouldn't consider bonobos as sapient until they can write something about human life as a sunset or the end of a long road or something.", "https://www.smbc-comics.com/comic/dad-jokes", "https://www.smbc-comics.com/comics/1450366623-20151217.png"),
-                new Comic.Page(4, "Thank you for the sex", "PS: Make America Great Again", "https://www.smbc-comics.com/comic/thank-you-for-the-sex", "https://www.smbc-comics.com/comics/1450624616-20151220.png"),
-                new Comic.Page(5, "E-stalking", "All old ladies wear pink Mother Hubbard dresses and sit in rocking chairs all the time.", "https://www.smbc-comics.com/comic/e-stalking", "https://www.smbc-comics.com/comics/1450711961-20151221.png"),
-                new Comic.Page(6, "God", "Hallowed be thy name, Steve.", "https://www.smbc-comics.com/comic/god", "https://www.smbc-comics.com/comics/1450799655-20151222.png"),
-                new Comic.Page(7, "Other riddles of sphinx", "With apologies to anyone of good taste.", "https://www.smbc-comics.com/comic/other-riddles-of-the-sphinx", "https://www.smbc-comics.com/comics/1450886738-20151223.png"),
+                new Comic.Page("Licorice", "Not to mention the difficulty of synchronizing your efforts with my once-per-solstice state of carnal arousal!", "https://www.smbc-comics.com/comic/licorice", "https://www.smbc-comics.com/comics/1450454206-20151218.png"),
+                new Comic.Page("Quantum mechanics is weird", "And lo, The Lord spake, saying, Let the fundamental equations contain an imaginary component.", "https://www.smbc-comics.com/comic/quantum-mechanics-is-weird", "https://www.smbc-comics.com/comics/1450539983-20151219.png"),
+                new Comic.Page("Dad jokes", "I feel like we shouldn't consider bonobos as sapient until they can write something about human life as a sunset or the end of a long road or something.", "https://www.smbc-comics.com/comic/dad-jokes", "https://www.smbc-comics.com/comics/1450366623-20151217.png"),
+                new Comic.Page("Thank you for the sex", "PS: Make America Great Again", "https://www.smbc-comics.com/comic/thank-you-for-the-sex", "https://www.smbc-comics.com/comics/1450624616-20151220.png"),
+                new Comic.Page("E-stalking", "All old ladies wear pink Mother Hubbard dresses and sit in rocking chairs all the time.", "https://www.smbc-comics.com/comic/e-stalking", "https://www.smbc-comics.com/comics/1450711961-20151221.png"),
+                new Comic.Page("God", "Hallowed be thy name, Steve.", "https://www.smbc-comics.com/comic/god", "https://www.smbc-comics.com/comics/1450799655-20151222.png"),
+                new Comic.Page("Other riddles of sphinx", "With apologies to anyone of good taste.", "https://www.smbc-comics.com/comic/other-riddles-of-the-sphinx", "https://www.smbc-comics.com/comics/1450886738-20151223.png"),
         };
         comic.curpage = 2;
     }
@@ -118,10 +129,10 @@ public class DataWorker {
     public static Comic[] getComicsList(Context context /* getApplicationContext() */) {
         SharedPreferences sp = context.getSharedPreferences("Comics", Context.MODE_PRIVATE);
         String json = sp.getString("Comic list", "");
-        Comic[] result = comicsFromJson(json);
+        Comic[] result = Comic.arrayFromJson(json);
 
         if (json.length() == 0 || result.length == 0)
-            return  comicsList; // tmp default list
+            return comicsList; // tmp default list
         else
             return result;
     }
@@ -135,7 +146,7 @@ public class DataWorker {
         if (json.length() == 0)
             return getComic(comicsList, name);
 
-        result = comicFromJson(json);
+        result = Comic.fromJson(json);
         return result;
     }
 

@@ -14,7 +14,7 @@
         android:title="Day/Night"
         app:showAsAction="never"/>
     <item
-        android:id="@+id/filter"
+        android:id="@+id/action_filter"
         android:orderInCategory="100"
         android:title="Filter..."
         app:showAsAction="never"/>
