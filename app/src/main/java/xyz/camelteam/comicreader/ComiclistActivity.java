@@ -35,6 +35,8 @@ public class ComiclistActivity extends AppCompatActivity {
         setContentView(R.layout.activity_comiclist);
         ListView listView = findViewById(R.id.comic_list);
 
+        new FileWorker(getApplicationContext());
+
         Comic[] comics = DataWorker.getComicsList(getApplicationContext());
 
         ComiclistAdapter adapter = new ComiclistAdapter(comics);
@@ -43,6 +45,13 @@ public class ComiclistActivity extends AppCompatActivity {
         logo_placeholder = BitmapFactory.decodeResource(getResources(), R.mipmap.logo_placeholder);
         listView.setOnItemClickListener((parent, view, position, id) -> openComic(comics[position].shortName));
         listView.setOnLongClickListener(v -> {
+            Comic comic = comics[v.getId()];
+            Comic.Page[] pages = comic.pages;
+            if (pages != null && pages.length > 0) {
+                for (int i = 0; i < pages.length; i++) { // сохраняет все страницы
+                    FileWorker.singleton.saveImage(comic, i);
+                }
+            }
             //TODO: Открывать меню с предложением: удалить комикс из памяти, загрузить в память полностью, отметить как избранное
             return false;
         });
@@ -170,15 +179,7 @@ public class ComiclistActivity extends AppCompatActivity {
 
         @Override
         protected Object doInBackground(Object[] objects) {
-            String filename = comic.shortName + ".png";
-            String path = context.getExternalFilesDir("logo").getAbsolutePath() + "/" + filename;
-            Log.i("Loading image", "for " + comic.shortName + ": " + path);
-
-            bm = DataWorker.getImage(path); // Пробуем получить из локального хранилища
-            if (bm == null) { // если нет локально, пробуем скачать из инета:
-                HttpWorker.saveImage(comic.logoUrl, path);
-                bm = DataWorker.getImage(path);
-            }
+            bm = FileWorker.singleton.getLogo(comic);
             return null;
         }
 

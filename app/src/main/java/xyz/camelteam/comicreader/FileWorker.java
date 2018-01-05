@@ -6,59 +6,109 @@ import android.graphics.BitmapFactory;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 /** Обеспечивает простой доступ к файлам приложения
  */
 public class FileWorker {
-    Context context;
-    File path;
+    public static FileWorker singleton;
+    String rootDir;
+    String logoDir;
+    String stripDir;
 
-    enum Category {ICON, STRIP}
+    public FileWorker(Context context) {
+        rootDir = context.getExternalFilesDir("Pictures").getAbsolutePath();
+        logoDir = rootDir + "/logo/";
+        stripDir = rootDir + "/strip/";
 
-    /**
-     * @param name определяет название директории */
-    public FileWorker(Context context, String name) {
-        this.path = context.getExternalFilesDir(name);
-        this.context = context;
+        if (!new File(logoDir).exists()) new File(logoDir).mkdirs();
+        if (!new File(logoDir).exists()) new File(stripDir).mkdirs();
+
+        singleton = this;
     }
 
-    /** Возвращает изображение по указанному пути, сохраняет прозрачность
-     * @param category Название категории: icon, strip
-     * */
-    public Bitmap getImage(Category category, String name) {
-        File file = new File(new File(path, categoryName(category)), name);
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
-        Bitmap bitmap = BitmapFactory.decodeFile(file.getAbsolutePath(), options);
-
-        return bitmap;
+    void saveImage(String url, String path) {
+        new BasicImageDownloader(new ImageDownloadListener(path)).download(url, false);
     }
 
-    /** Сохраняет изображение по указанному пути, сохраняет прозрачность */
-    public void saveImage(String category, String name, Bitmap bm) throws FileNotFoundException {
-        File file = new File(new File(path, category), name);
-        bm.compress(Bitmap.CompressFormat.PNG, 95, context.openFileOutput(file.getAbsolutePath(), Context.MODE_PRIVATE));
+    Bitmap getImage(File path) {
+        return BasicImageDownloader.readFromDisk(path);
     }
 
-    /** Загружает картинку из памяти устройства */
-    public static Bitmap getImage(String path, Context... context) {
-        // TODO
-        // Temporary:
-        Bitmap bm = null;
-
-        if ((path == null || path.length() == 0) && context.length > 0)
-            bm = BitmapFactory.decodeResource(context[0].getResources(), R.raw.test_page);
-        else if (path != null)
-            bm = BasicImageDownloader.readFromDisk(new File(path));
-        return bm;
+    Bitmap getImage(String url, File path) {
+        ImageDownloadListener listener = new ImageDownloadListener(path.getAbsolutePath());
+        new BasicImageDownloader(listener).download(url, false);
+        while (!listener.done);
+        return getImage(path);
     }
 
-    String categoryName(Category category) {
-        switch (category) {
-            case ICON: return "logo";
-            case STRIP: return "strip";
-            default: throw new RuntimeException("Unknown category!");
+    void saveLogo(Comic comic) {
+        saveImage(comic.logoUrl, logoDir);
+    }
+
+    void saveImage(Comic comic, int page) {
+        String path = stripDir + comic.shortName;
+        new File(path).mkdirs();
+        saveImage(comic.getPage(page).image_link, path);
+    }
+
+    Bitmap getLogo(Comic comic) {
+        File logo = new File(logoDir + "/" + comic.shortName + ".png");
+        if (logo.exists())
+            return getImage(logo);
+        else
+            return getImage(comic.logoUrl, logo);
+    }
+
+    Bitmap getImage(Comic comic, int page) {
+        Comic.Page p = comic.getPage(page);
+        File file = new File(stripDir + "/" + comic.shortName + "/" + p.name + ".png");
+        if (file.exists())
+            return getImage(file);
+        else
+            return getImage(p.image_link, file);
+    }
+
+
+    static class ImageDownloadListener implements BasicImageDownloader.OnImageLoaderListener {
+        String path;
+        boolean done = false;
+
+        public ImageDownloadListener(String path) {
+            this.path = path;
+        }
+
+        @Override
+        public void onError(BasicImageDownloader.ImageError error) {
+            //TODO
+            done = true;
+        }
+
+        @Override
+        public void onProgressChange(int percent) {
+            // нужен ли ??
+        }
+
+        @Override
+        public void onComplete(Bitmap result) {
+            FileOutputStream out = null;
+            File file = new File(path);
+            if (!file.exists())
+                new File(file.getParent()).mkdirs();
+
+            try {
+                out = new FileOutputStream(file.getAbsolutePath());
+                result.compress(Bitmap.CompressFormat.PNG, 100, out);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                if (out != null) { try { out.close(); } catch (IOException e) { e.printStackTrace(); } }
+                done = true;
+            }
+
         }
     }
+
 
 }

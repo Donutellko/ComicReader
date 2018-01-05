@@ -76,11 +76,6 @@ public class DataWorker {
         return Comic.toJson(simpleComics);
     }
 
-    /** Загружает картинку из памяти устройства */
-    public static Bitmap getImage(String path) {
-        return BasicImageDownloader.readFromDisk(new File(path));
-    }
-
     /** Докачивает нужные страницы с сервера, если изменился timestamp */
     static void update(Comic comic) {
         // TODO:
@@ -149,4 +144,5 @@ public class DataWorker {
                 return c;
         return null;
     }
+
 }

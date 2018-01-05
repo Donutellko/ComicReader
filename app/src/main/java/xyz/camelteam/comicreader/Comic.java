@@ -2,6 +2,8 @@ package xyz.camelteam.comicreader;
 
 import com.google.gson.Gson;
 
+import java.io.File;
+
 /** Класс хранит информацию о конкретном комиксе и объекты его страниц
  */
 public class Comic {
@@ -68,7 +70,7 @@ public class Comic {
      * Если такой страницы нет, возвращает null
      * @param number положительное число не более длины массива pages
      */
-    private Page getPage(int number) {
+    Page getPage(int number) {
         curpage = number;
         if (pages != null && pages.length + 1 >= number)
             return pages[number];
@@ -84,13 +86,12 @@ public class Comic {
         return true; // TODO
     }
 
-
     /**
      * Класс страницы комикса.
      * Содержит информацию о себе, ссылку на её страницу, url изображения и локальный путь к изображению
      */
     public static class Page {
-        String name, description, link, image_link, image_path;
+        String name, description, link, image_link;
 
         // example: new Comic.Page(245, "Dad jokes", "I feel like we shouldn't consider bonobos as sapient until they can write something about human life as a sunset or the end of a long road or something.", "https://www.smbc-comics.com/comic/dad-jokes", "https://www.smbc-comics.com/comics/1450366623-20151217.png");
         public Page(String name, String description, String link, String image_link) {

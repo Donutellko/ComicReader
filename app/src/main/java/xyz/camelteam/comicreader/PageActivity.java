@@ -127,14 +127,7 @@ public class PageActivity extends AppCompatActivity {
 
         @Override
         protected Object doInBackground(Object[] objects) {
-            String path = page.image_path = context.getExternalFilesDir("strip").getAbsolutePath() + "/" + comic.shortName + "/" + page.name + ".png";
-            Log.i("Loading image", "for " + page.name + ": " + path);
-
-            bm = DataWorker.getImage(path); // Пробуем получить из локального хранилища
-            if (bm == null) { // если нет локально, пробуем скачать из инета:
-                HttpWorker.saveImage(page.image_link, path);
-                bm = DataWorker.getImage(path);
-            }
+            bm = FileWorker.singleton.getImage(comic, comic.curpage);
             return null;
         }
 
