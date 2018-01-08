@@ -1,21 +1,16 @@
 package xyz.camelteam.comicreader;
 
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
-import android.support.constraint.solver.widgets.ConstraintWidget;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -38,7 +33,7 @@ public class PageActivity extends AppCompatActivity {
 
         strip_placeholder = BitmapFactory.decodeResource(getResources(), R.mipmap.strip_placeholder);
 
-        String name = getIntent().getStringExtra("Comic name");
+        String name = getIntent().getStringExtra("Comic title");
         current = DataWorker.getComic(getApplicationContext(), name);
         DataWorker.update(current);
         updatePage();
@@ -63,8 +58,8 @@ public class PageActivity extends AppCompatActivity {
     }
 
     void updatePage() {
-        new AsyncPageFiller(findViewById(R.id.page), current, getApplicationContext()).execute();
-        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN); // Отключает автоматическое появление клавиатуры
+        new AsyncPageFiller(findViewById(R.id.page), current).execute();
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN); // Отменяет автоматическое появление клавиатуры
     }
 
     void showToast(String text) {
@@ -87,10 +82,10 @@ public class PageActivity extends AppCompatActivity {
         switch (item.getItemId()) {
             case R.id.action_quit: System.exit(0); break;
             case R.id.action_reload: //TODO
+            case R.id.action_load_next: //TODO: Открытие окна с предложением сохранить следующие/предыдущие N страниц
             case R.id.action_day_night: //TODO
             case R.id.action_open: //TODO
-            case R.id.action_zoomin: //TODO
-            case R.id.action_zoomout: //TODO
+            case R.id.action_goend: //TODO
             default: Log.e("Not working menu entry!", "Код для этого пункта меню ещё не написан");
         }
         return super.onOptionsItemSelected(item);
@@ -98,15 +93,13 @@ public class PageActivity extends AppCompatActivity {
 
     /** Заполняет полученный View информацией о текущей странице загружает туда Bitmap */
     static class AsyncPageFiller extends AsyncTask {
-        Context context;
         View view;
         Comic comic;
         Comic.Page page;
         Bitmap bm;
         ImageView imageView;
 
-        public AsyncPageFiller(View view, Comic comic, Context context) {
-            this.context = context;
+        public AsyncPageFiller(View view, Comic comic) {
             this.view = view;
             this.comic = comic;
             page = comic.getPage();
@@ -115,13 +108,18 @@ public class PageActivity extends AppCompatActivity {
 
         @Override
         protected void onPreExecute() {
-            ((TextView) view.findViewById(R.id.page_name)).setText(page.name);
+            if (page == null) {
+                page = new Comic.Page("Page is not found", "Page is not found", null, null, null);
+            }
+
+            ((TextView) view.findViewById(R.id.page_name)).setText(page.title);
             ((TextView) view.findViewById(R.id.page_desc)).setText(page.description);
             ((EditText) view.findViewById(R.id.page_number)).setText(valueOf(comic.curpage + 1));
 
             ((ProgressBar) view.findViewById(R.id.page_progress)).setProgress(comic.curpage);
-            ((ProgressBar) view.findViewById(R.id.page_progress)).setMax(comic.pages.length - 1);
+            ((ProgressBar) view.findViewById(R.id.page_progress)).setMax(comic.getLength());
             imageView.setImageBitmap(strip_placeholder);
+
             super.onPreExecute();
         }
 
@@ -136,7 +134,6 @@ public class PageActivity extends AppCompatActivity {
             if (bm != null) {
                 imageView.setImageBitmap(bm);
             }
-            super.onPostExecute(o);
         }
     }
 }

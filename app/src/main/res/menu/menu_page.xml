@@ -9,14 +9,14 @@
         android:title="Reload page"
         app:showAsAction="never"/>
     <item
-        android:id="@+id/action_zoomin"
+        android:id="@+id/action_load_next"
         android:orderInCategory="100"
-        android:title="Zoom in"
+        android:title="Load next pages..."
         app:showAsAction="never"/>
     <item
-        android:id="@+id/action_zoomout"
+        android:id="@+id/action_goend"
         android:orderInCategory="100"
-        android:title="Zoom out"
+        android:title="Goto end"
         app:showAsAction="never"/>
     <item
         android:id="@+id/action_day_night"

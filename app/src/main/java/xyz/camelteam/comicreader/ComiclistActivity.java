@@ -1,6 +1,5 @@
 package xyz.camelteam.comicreader;
 
-import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -37,9 +36,12 @@ public class ComiclistActivity extends AppCompatActivity {
 
         new FileWorker(getApplicationContext());
 
+        DataWorker.updateComicsList(getApplicationContext());
+
         Comic[] comics = DataWorker.getComicsList(getApplicationContext());
 
         ComiclistAdapter adapter = new ComiclistAdapter(comics);
+        new AsyncLogoGetter(comics, adapter).execute();
         listView.setAdapter(adapter);
 
         logo_placeholder = BitmapFactory.decodeResource(getResources(), R.mipmap.logo_placeholder);
@@ -57,13 +59,13 @@ public class ComiclistActivity extends AppCompatActivity {
         });
     }
 
-    /** Открывает PageActivity
+    /** Открывает ComicActivity
      * помещает в Intent название комикса, который требуется открыть.
-     * @see PageActivity#onCreate(Bundle)
+     * @see ComicActivity#onCreate(Bundle)
      * @param name Название комикса (желательно краткое, но полное тоже работает) */
     private void openComic(String name) {
-        Intent intent = new Intent(ComiclistActivity.this, PageActivity.class);
-        intent.putExtra("Comic name", name);
+        Intent intent = new Intent(ComiclistActivity.this, ComicActivity.class);
+        intent.putExtra("Comic title", name);
         startActivity(intent);
     }
 
@@ -121,12 +123,12 @@ public class ComiclistActivity extends AppCompatActivity {
          */
         @Override
         public View getView(int position, View convertView, ViewGroup container) {
-            if (convertView == null) convertView = getLayoutInflater().inflate(R.layout.comiclist_item, container, false);
-
-            ImageView icon = convertView.findViewById(R.id.comic_icon);
-            icon.setImageBitmap(logo_placeholder);
+            convertView = convertView != null ? convertView : getLayoutInflater().inflate(R.layout.comiclist_item, container, false);
 
             Comic c = (Comic) getItem(position);
+
+            ImageView icon = convertView.findViewById(R.id.comic_icon);
+            icon.setImageBitmap(c.logo != null ? c.logo : logo_placeholder);
 
             String name = "[" + c.lang + "] " + c.name;
             if (name.length() > 35)
@@ -139,8 +141,6 @@ public class ComiclistActivity extends AppCompatActivity {
 
             ((TextView) convertView.findViewById(R.id.comic_name)).setText(name);
             ((TextView) convertView.findViewById(R.id.comic_info)).setText(desc);
-
-            new AsyncLogoSetter(icon, c, getApplicationContext()).execute();
 
             return convertView;
         }
@@ -161,33 +161,30 @@ public class ComiclistActivity extends AppCompatActivity {
         }
     }
 
-    /** Загружает из памяти (сохраняет из интернета, если отсутствует) и подставляет логотип комикса в переданный ImageView */
-    static class AsyncLogoSetter extends AsyncTask {
-        Context context;
-        ImageView imageView;
-        Comic comic;
-        Bitmap bm;
+    /**
+     * Загружает из памяти или интернета логотипы комиксов и уведомляет переданный адаптер об изменении
+     */
+    static class AsyncLogoGetter extends AsyncTask {
+        Comic[] comics;
+        ComiclistAdapter adapter;
 
-        /**
-         * @param imageView ImageView, в который нужно поместить загруженный логотип
-         * @param comic Объект комикса, для которого это нужно */
-        public AsyncLogoSetter(ImageView imageView, Comic comic, Context context) {
-            this.imageView = imageView;
-            this.comic = comic;
-            this.context = context;
+        public AsyncLogoGetter(Comic[] comics, ComiclistAdapter adapter) {
+            this.comics = comics;
+            this.adapter = adapter;
         }
 
         @Override
         protected Object doInBackground(Object[] objects) {
-            bm = FileWorker.singleton.getLogo(comic);
+            for (Comic c : comics) {
+                c.logo = FileWorker.singleton.getLogo(c);
+            }
             return null;
         }
 
         @Override
         protected void onPostExecute(Object o) {
-            if (bm != null)
-                imageView.setImageBitmap(bm);
-            super.onPostExecute(o);
+            if (adapter != null)
+                adapter.notifyDataSetChanged();
         }
     }
 }

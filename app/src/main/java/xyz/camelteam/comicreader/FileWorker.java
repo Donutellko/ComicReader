@@ -2,10 +2,8 @@ package xyz.camelteam.comicreader;
 
 import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
@@ -50,9 +48,14 @@ public class FileWorker {
     void saveImage(Comic comic, int page) {
         String path = stripDir + comic.shortName;
         new File(path).mkdirs();
-        saveImage(comic.getPage(page).image_link, path);
+        saveImage(comic.getPage(page).imgUrl, path);
     }
 
+    /**
+     * Возвращает загруженный из памяти или интернета логотип дял переданного комикса
+     * @param comic
+     * @return
+     */
     Bitmap getLogo(Comic comic) {
         File logo = new File(logoDir + "/" + comic.shortName + ".png");
         if (logo.exists())
@@ -62,14 +65,16 @@ public class FileWorker {
     }
 
     Bitmap getImage(Comic comic, int page) {
+        if (comic == null) return null;
         Comic.Page p = comic.getPage(page);
-        File file = new File(stripDir + "/" + comic.shortName + "/" + p.name + ".png");
+        if (p == null) return null;
+        File file = new File(stripDir + "/" + comic.shortName + "/" + p.title + ".png");
+
         if (file.exists())
             return getImage(file);
         else
-            return getImage(p.image_link, file);
+            return getImage(p.imgUrl, file);
     }
-
 
     static class ImageDownloadListener implements BasicImageDownloader.OnImageLoaderListener {
         String path;
@@ -109,6 +114,5 @@ public class FileWorker {
 
         }
     }
-
 
 }

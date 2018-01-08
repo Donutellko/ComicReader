@@ -1,15 +1,16 @@
 package xyz.camelteam.comicreader;
 
-import com.google.gson.Gson;
+import android.graphics.Bitmap;
 
-import java.io.File;
+import com.google.gson.Gson;
 
 /** Класс хранит информацию о конкретном комиксе и объекты его страниц
  */
 public class Comic {
     public String name, shortName, lang, description, link, logoUrl;
-    int curpage = 0;
+    int curpage = 0, length;
     long timestamp;
+    public Bitmap logo;
     Page[] pages;
 
     /**
@@ -31,8 +32,10 @@ public class Comic {
         this.pages = pages;
         this.logoUrl = icon_url;
         this.timestamp = timestamp;
+        length = pages == null ? 0 : pages.length;
     }
 
+    /** Сокращённый конструктор для краткой записи (без списка страниц) */
     public Comic(String name, String shortName, String lang, String description, String link) {
         this.name = name;
         this.shortName = shortName;
@@ -86,19 +89,24 @@ public class Comic {
         return true; // TODO
     }
 
+    public int getLength() {
+        return pages == null ? 0 : pages.length;
+    }
+
     /**
      * Класс страницы комикса.
      * Содержит информацию о себе, ссылку на её страницу, url изображения и локальный путь к изображению
      */
     public static class Page {
-        String name, description, link, image_link;
+        String title, description, thisUrl, imgUrl, bonusUrl;
 
         // example: new Comic.Page(245, "Dad jokes", "I feel like we shouldn't consider bonobos as sapient until they can write something about human life as a sunset or the end of a long road or something.", "https://www.smbc-comics.com/comic/dad-jokes", "https://www.smbc-comics.com/comics/1450366623-20151217.png");
-        public Page(String name, String description, String link, String image_link) {
-            this.name = name;
+        public Page(String title, String description, String thisUrl, String imgUrl, String bonusUrl) {
+            this.title       = title;
             this.description = description;
-            this.link = link;
-            this.image_link = image_link;
+            this.thisUrl     = thisUrl;
+            this.imgUrl      = imgUrl;
+            this.bonusUrl    = bonusUrl;
         }
     }
 }
