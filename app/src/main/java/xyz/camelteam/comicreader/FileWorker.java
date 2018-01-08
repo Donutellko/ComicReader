@@ -15,6 +15,7 @@ public class FileWorker {
     String logoDir;
     String stripDir;
 
+    /** При создании объекта инициализирует рабочие директории и создаёт синглтон для упрощения работы с файлами */
     public FileWorker(Context context) {
         rootDir = context.getExternalFilesDir("Pictures").getAbsolutePath();
         logoDir = rootDir + "/logo/";

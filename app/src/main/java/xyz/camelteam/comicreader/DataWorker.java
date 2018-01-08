@@ -102,7 +102,7 @@ public class DataWorker {
      */
     public static void updateComicsList(Context context) {
         // TODO: получить и сохранить список с сервера
-        new AsyncDownload(DataWorker.server_url + "comiclist", context) {
+        AsyncDownload ad = new AsyncDownload(DataWorker.server_url + "comiclist", context) {
             @Override
             void customOnPostExecute(String result) {
                 SharedPreferences sp = context.getSharedPreferences("Comics", Context.MODE_PRIVATE);
@@ -110,7 +110,8 @@ public class DataWorker {
                 se.putString("Comics", result);
                 //Comic[] pages = new Gson().fromJson(result, Comic[].class);
             }
-        }.execute();
+        };
+        ad.execute();
     }
 
     /**
@@ -127,31 +128,77 @@ public class DataWorker {
             saveEntirePages(comic, 0, comic.getLength());
     }
 
+    @Deprecated
+    /** @see #updateComicPage(SharedPreferences, Comic) */
+    public static void updateComicPage(Context context, Comic comic) {
+        SharedPreferences sp = context.getSharedPreferences("Comics", Context.MODE_PRIVATE);
+        updateComicPage(sp, comic);
+    }
+
+    @Deprecated
+    /** @see #getComicsList(SharedPreferences) */
+    public static Comic[] getComicsList(Context context) {
+        SharedPreferences sp = context.getSharedPreferences("Comics", Context.MODE_PRIVATE);
+        return getComicsList(sp);
+    }
+
+    @Deprecated
+    /** @see #saveComicsList(SharedPreferences) */
+    public static void saveComicsList(Context context, Comic[] comics) {
+        SharedPreferences sp = context.getSharedPreferences("Comics", Context.MODE_PRIVATE);
+        saveComicsList(sp, comics);
+    }
+
+    @Deprecated
+    /** @see #getComic(SharedPreferences, String) */
+    public static Comic getComic(Context context, String name) {
+        SharedPreferences sp = context.getSharedPreferences("Comics", Context.MODE_PRIVATE);
+        return getComic(sp, name);
+    }
+
+    /**
+     * Обновляет номер страницы переданного комикса в SharedPreferences
+     */
+    public static void updateComicPage(SharedPreferences sp, Comic comic) {
+        String json = sp.getString("Comic list", "");
+        if (json.length() == 0) return;
+
+        Comic[] comics = Comic.arrayFromJson(json);
+        for(Comic c : comics) {
+            if (c.equals(comic)) {
+                c.curpage = comic.curpage;
+                sp.edit().putString("Comic list", new Gson().toJson(comics)).apply();
+            }
+        }
+    }
+
     /**
      * Загружает из SharedPreferences список комиксов с базовой информацией
-     *
      * @return массив из комиксов с базовой информацией
      */
-    public static Comic[] getComicsList(Context context /* getApplicationContext() */) {
-        SharedPreferences sp = context.getSharedPreferences("Comics", Context.MODE_PRIVATE);
+    public static Comic[] getComicsList(SharedPreferences sp) {
         String json = sp.getString("Comic list", "");
         Comic[] result = Comic.arrayFromJson(json);
 
-        if (json.length() == 0 || result.length == 0)
+        if (json.length() == 0 || result.length == 0) {
+            saveComicsList(sp, comicsList);
             return comicsList; // tmp default list
-        else
+        } else
             return result;
+    }
+
+    public static void saveComicsList(SharedPreferences sp, Comic[] comics) {
+        sp.edit().putString("Comic list", new Gson().toJson(comics)).apply();
     }
 
     /** Загружает полный объект комикса из SharedPreferences
      * @return комикс включая страницы
      */
-    public static Comic getComic(Context context /* getApplicationContext() */, String name) {
+    public static Comic getComic(SharedPreferences sp, String name) {
         Comic result;
-        SharedPreferences sp = context.getSharedPreferences("Comics", Context.MODE_PRIVATE);
         String json = sp.getString(name, "");
         if (json.length() == 0)
-            return findComic(comicsList, name);
+            return findComic(getComicsList(sp), name);
 
         result = Comic.fromJson(json);
         return result;
@@ -170,11 +217,10 @@ public class DataWorker {
     // Не вызывать в Main потоке
     public static String getWebpage(String url_s) {
         String result = null;
+        BufferedReader reader = null;
+        URLConnection uc;
 
         try {
-            BufferedReader reader = null;
-            URLConnection uc = null;
-
             try {
                 URL url = new URL(url_s);
                 uc = url.openConnection();

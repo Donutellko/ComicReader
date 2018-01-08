@@ -26,8 +26,15 @@ import java.util.List;
  * Использует кастомный адаптер для заполнения списка
  */
 public class ComiclistActivity extends AppCompatActivity {
-    private static Bitmap logo_placeholder;
 
+    /**
+     * При запуске приложение загружает из SharedPreferences список доступных комиксов,
+     * пытается получить получить с сервера обновлённый список, загружает в память
+     * (при отсутствии, из интернета) логотипы комиксов для отображения в списке.
+     * Создаёт список, адаптер и логотип по умолчанию для него:
+     * @see ComiclistAdapter
+     * Устанавливает действия для элементов списка
+     * */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -40,11 +47,12 @@ public class ComiclistActivity extends AppCompatActivity {
 
         Comic[] comics = DataWorker.getComicsList(getApplicationContext());
 
-        ComiclistAdapter adapter = new ComiclistAdapter(comics);
+        Bitmap logo_placeholder = BitmapFactory.decodeResource(getResources(), R.mipmap.logo_placeholder);
+
+        ComiclistAdapter adapter = new ComiclistAdapter(comics, logo_placeholder);
         new AsyncLogoGetter(comics, adapter).execute();
         listView.setAdapter(adapter);
 
-        logo_placeholder = BitmapFactory.decodeResource(getResources(), R.mipmap.logo_placeholder);
         listView.setOnItemClickListener((parent, view, position, id) -> openComic(comics[position].shortName));
         listView.setOnLongClickListener(v -> {
             Comic comic = comics[v.getId()];
@@ -100,13 +108,16 @@ public class ComiclistActivity extends AppCompatActivity {
      * Об использовании здесь: http://developer.alexanderklimov.ru/android/theory/adapters.php
      */
     private class ComiclistAdapter extends BaseAdapter {
+        private final Bitmap logo_placeholder;
         Comic[] comics;
 
-        public ComiclistAdapter(Comic[] comics) {
+        public ComiclistAdapter(Comic[] comics, Bitmap logo_placeholder) {
+            this.logo_placeholder = logo_placeholder;
             this.comics = comics;
         }
 
-        public ComiclistAdapter(Comic[] comics, int[] filter) {
+        public ComiclistAdapter(Comic[] comics, Bitmap logo_placeholder, int[] filter) {
+            this.logo_placeholder = logo_placeholder;
             List<Comic> tmp = new ArrayList<>(comics.length);
             for (Comic comic : comics) {
                 if (comic.matchesFilter(filter))

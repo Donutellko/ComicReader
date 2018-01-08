@@ -81,6 +81,14 @@ public class Comic {
     }
 
     /**
+     * Считаем ссылку уникальным идентификатором комикса
+     * */
+    @Override
+    public boolean equals(Object obj) {
+        return (obj instanceof Comic) && link.equals(((Comic) obj).link);
+    }
+
+    /**
      * Проверка того, удовлетворяет ли этот комикс переданному фильтру
      * Пока что возвращает только true
      * @param filter ещё не знаю, какого типа будет этот параметр

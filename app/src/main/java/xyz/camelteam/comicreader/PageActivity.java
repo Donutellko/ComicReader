@@ -1,5 +1,6 @@
 package xyz.camelteam.comicreader;
 
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
@@ -39,11 +40,11 @@ public class PageActivity extends AppCompatActivity {
         updatePage();
 
         findViewById(R.id.page_next).setOnClickListener(v -> {
-            if (current.curpage < current.pages.length - 1) { current.curpage++; updatePage(); }
+            if (current.curpage < current.pages.length - 1) { current.curpage++; updateSavedCurpage(); updatePage(); }
         });
 
         findViewById(R.id.page_prev).setOnClickListener(v -> {
-            if (current.curpage > 0) { current.curpage--; updatePage(); }
+            if (current.curpage > 0) { current.curpage--; updateSavedCurpage(); updatePage(); }
         });
 
         ((EditText) findViewById(R.id.page_number)).setOnEditorActionListener((v, actionId, event) -> {
@@ -58,8 +59,13 @@ public class PageActivity extends AppCompatActivity {
     }
 
     void updatePage() {
-        new AsyncPageFiller(findViewById(R.id.page), current).execute();
+        new AsyncPageFiller(findViewById(R.id.page), current).execute(); // TODO: показывать прогресс загрузки изображения (например так: https://toster.ru/q/327193)
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN); // Отменяет автоматическое появление клавиатуры
+    }
+
+    /** Записывает в sharedPreferences номер текущей страницы комикса */
+    public void updateSavedCurpage() {
+        DataWorker.updateComicPage(getApplicationContext(), current);
     }
 
     void showToast(String text) {
