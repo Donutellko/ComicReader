@@ -7,55 +7,21 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <ProgressBar
-        android:id="@+id/page_progress"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top"
-        android:max="1000"
-        android:minHeight="10dp"
-        android:progress="237" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="35dp"
-        android:orientation="horizontal"
-        android:paddingLeft="10dp"
-        android:paddingRight="10dp">
-
-        <Button
-            android:id="@+id/page_prev"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="2"
-            android:text="Previous"
-            android:textSize="12sp" />
-
-        <EditText
-            android:id="@+id/page_number"
-            android:layout_width="150dp"
-            android:layout_height="wrap_content"
-            android:ems="10"
-            android:focusedByDefault="false"
-            android:inputType="number"
-            android:text="237"
-            android:textAlignment="center"
-            android:textSize="12sp" />
-
-        <Button
-            android:id="@+id/page_next"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="2"
-            android:text="Next"
-            android:textSize="12sp" />
-    </LinearLayout>
-
     <ScrollView
+        android:id="@+id/page_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_weight="1">
+
+        <ProgressBar
+            android:id="@+id/page_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top"
+            android:max="1000"
+            android:minHeight="10dp"
+            android:progress="237" />
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -63,11 +29,46 @@
             android:orientation="vertical"
             android:padding="10dp">
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp">
+
+                <Button
+                    android:id="@+id/page_prev"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="2"
+                    android:text="Previous"
+                    android:textSize="12sp" />
+
+                <EditText
+                    android:id="@+id/page_number"
+                    android:layout_width="150dp"
+                    android:layout_height="wrap_content"
+                    android:ems="10"
+                    android:focusedByDefault="false"
+                    android:inputType="number"
+                    android:text="237"
+                    android:textAlignment="center"
+                    android:textSize="12sp" />
+
+                <Button
+                    android:id="@+id/page_next"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="2"
+                    android:text="Next"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
             <TextView
                 android:id="@+id/page_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Dad Jokes"
+                android:text="Page name"
                 android:textAlignment="center"
                 android:textSize="18sp"
                 android:textStyle="bold" />
@@ -80,7 +81,7 @@
                 android:adjustViewBounds="true"
                 android:contentDescription="Comic page image"
                 android:padding="0dp"
-                app:srcCompat="@raw/test_page" />
+                app:srcCompat="@mipmap/strip_placeholder" />
 
             <TextView
                 android:id="@+id/page_desc"

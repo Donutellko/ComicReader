@@ -47,9 +47,16 @@ public class FileWorker {
     }
 
     void saveImage(Comic comic, int page) {
-        String path = stripDir + comic.shortName;
-        new File(path).mkdirs();
-        saveImage(comic.getPage(page).imgUrl, path);
+
+        if (comic == null) return;
+        Comic.Page p = comic.getPage(page);
+        if (p == null) return;
+        File file = new File(stripDir + "/" + comic.shortName + "/" + p.title + ".png");
+
+        if (!file.exists()) {
+            file.getParentFile().mkdirs();
+            saveImage(p.imgUrl, file.getAbsolutePath());
+        }
     }
 
     /**
