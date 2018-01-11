@@ -43,7 +43,7 @@ public class FileWorker {
     }
 
     void saveLogo(Comic comic) {
-        saveImage(comic.logoUrl, logoDir);
+        saveImage(comic.getLogoUrl(), logoDir);
     }
 
     void saveImage(Comic comic, int page) {
@@ -69,7 +69,7 @@ public class FileWorker {
         if (logo.exists())
             return getImage(logo);
         else
-            return getImage(comic.logoUrl, logo);
+            return getImage(comic.getLogoUrl(), logo);
     }
 
     Bitmap getImage(Comic comic, int page) {

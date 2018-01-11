@@ -1,7 +1,8 @@
 package xyz.camelteam.comicreader;
 
+import android.annotation.SuppressLint;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -24,26 +25,37 @@ import static xyz.camelteam.comicreader.PageActivity.SwipeListener.Swipe.*;
 public class PageActivity extends AppCompatActivity {
     Comic current;
     AsyncPageFiller currentTask;
+    SharedPreferences sp;
 
     /** Activity отображения страницы комикса
      * В Intent передаётся название комикса, который нужно открыть: @see ComiclistActivity#openComic(String)
      * */
     @Override
+    @SuppressLint("StaticFieldLeak")
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_page);
 
-        String name = getIntent().getStringExtra("Comic title");
-        current = DataWorker.getComic(getApplicationContext(), name);
-        DataWorker.update(current);
+        sp = getSharedPreferences("Comics", MODE_PRIVATE);
+
+        String shortName = getIntent().getStringExtra("Comic title");
+        current = DataWorker.findComic(DataWorker.loadComicsList(sp), shortName);
+        current.pages = DataWorker.getPages(sp, shortName);
+
         updatePage();
+        AsyncTask updatePages = new DataWorker.AsyncDownload(DataWorker.server_url + "pages/" + current.shortName) {
+            @Override
+            void customOnPostExecute(String result) {
+                current.pagesFromJson(result);
+                updatePage();
+            }
+        };
+        updatePages.execute();
 
         findViewById(R.id.page_next).setOnClickListener(v -> nextPage());
+        findViewById(R.id.page_prev).setOnClickListener(v -> prevPage());
 
-        findViewById(R.id.page_prev).setOnClickListener(v -> {
-            prevPage();
-        });
-
+        // Переход к нужной странице по номеру
         ((EditText) findViewById(R.id.page_number)).setOnEditorActionListener((v, actionId, event) -> {
             if (EditorInfo.IME_ACTION_GO <= actionId && actionId <= EditorInfo.IME_ACTION_DONE) {
                 String text = v.getText().toString();
@@ -56,8 +68,10 @@ public class PageActivity extends AppCompatActivity {
             return false;
         });
 
+        // Переключение страниц свайпом:
         findViewById(R.id.page_content).setOnTouchListener(
-                new SwipeListener(getWindowManager().getDefaultDisplay().getWidth() / 4) { // свайп на четверть ширины
+                new SwipeListener(Math.min(getWindowManager().getDefaultDisplay().getWidth(),
+                        getWindowManager().getDefaultDisplay().getHeight()) / 4) { // свайп на четверть ширины
             @Override
             void onSwipe(Swipe dir) {
                 if (dir == SwipeListener.Swipe.LEFT) prevPage();
@@ -66,24 +80,24 @@ public class PageActivity extends AppCompatActivity {
         });
     }
 
-    void nextPage() {
-        if (current.curpage < current.getLength() - 1) { current.curpage++; updatePage(); }
-    }
+    void nextPage() { if (current.curpage < current.getLength() - 1) { current.curpage++; updatePage(); } }
 
     void prevPage() {
         if (current.curpage > 0) { current.curpage--; updatePage(); }
     }
 
     void updatePage() {
-        updateSavedCurpage();
+        if (current.curpage != -1)
+            updateSavedCurpage();
         if (currentTask != null) currentTask.cancel(true); // завершаем предыдущий процесс наполнения страницы
-        new AsyncPageFiller(findViewById(R.id.page), current).execute(); // TODO: показывать прогресс загрузки изображения (например так: https://toster.ru/q/327193)
+        currentTask = new AsyncPageFiller(findViewById(R.id.page), current);
+        currentTask.execute(); // TODO: показывать прогресс загрузки изображения (например так: https://toster.ru/q/327193)
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN); // Отменяет автоматическое появление клавиатуры
     }
 
     /** Записывает в sharedPreferences номер текущей страницы комикса */
     public void updateSavedCurpage() {
-        DataWorker.updateComicPage(getApplicationContext(), current);
+        DataWorker.updateComic(sp, current);
     }
 
     void showToast(String text) {
@@ -119,30 +133,27 @@ public class PageActivity extends AppCompatActivity {
     static class AsyncPageFiller extends AsyncTask {
         View view;
         Comic comic;
-        Comic.Page page;
         Bitmap bm;
         ImageView imageView;
 
         public AsyncPageFiller(View view, Comic comic) {
             this.view = view;
             this.comic = comic;
-            page = comic.getPage();
             imageView = view.findViewById(R.id.page_image);
         }
 
         @Override
         protected void onPreExecute() {
-            if (page == null) {
-                page = new Comic.Page("Page is not found", "Page is not found", null, null, null);
-            }
+            Comic.Page p = comic.getPage();
+            if (p == null)
+                p = new Comic.Page("Page is not found", "Page is not found", null, null, null);
 
-            ((TextView) view.findViewById(R.id.page_name)).setText(page.title);
-            ((TextView) view.findViewById(R.id.page_desc)).setText(page.description);
+            ((TextView) view.findViewById(R.id.page_name)).setText(p.title);
+            ((TextView) view.findViewById(R.id.page_desc)).setText(p.description);
             ((EditText) view.findViewById(R.id.page_number)).setText(valueOf(comic.curpage + 1));
 
             ((ProgressBar) view.findViewById(R.id.page_progress)).setProgress(comic.curpage);
             ((ProgressBar) view.findViewById(R.id.page_progress)).setMax(comic.getLength());
-            //imageView.setImageBitmap(strip_placeholder);
             imageView.setAlpha(0x33);
 
             super.onPreExecute();
@@ -150,11 +161,12 @@ public class PageActivity extends AppCompatActivity {
 
         @Override
         protected Object doInBackground(Object[] objects) {
-            bm = FileWorker.singleton.getImage(comic, comic.curpage);
-            if (comic.curpage > 0)
-                FileWorker.singleton.saveImage(comic, comic.curpage - 1);
-            if (comic.curpage < comic.getLength() - 1)
-                FileWorker.singleton.saveImage(comic, comic.curpage + 1);
+            int a = comic.curpage;
+            if (a < comic.getLength() - 1)
+                FileWorker.singleton.saveImage(comic, a + 1);
+            if (a > 0)
+                FileWorker.singleton.saveImage(comic, a - 1);
+            bm = FileWorker.singleton.getImage(comic, a);
             return null;
         }
 

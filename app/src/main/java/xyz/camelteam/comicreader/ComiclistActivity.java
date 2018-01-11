@@ -1,6 +1,8 @@
 package xyz.camelteam.comicreader;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
@@ -17,6 +19,8 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 
@@ -39,14 +43,33 @@ public class ComiclistActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_comiclist);
-        ListView listView = findViewById(R.id.comic_list);
 
         new FileWorker(getApplicationContext());
 
-        DataWorker.updateComicsList(getApplicationContext());
+        SharedPreferences sp = getSharedPreferences("Comics", MODE_PRIVATE);
 
-        Comic[] comics = DataWorker.getComicsList(getApplicationContext());
+        ListView listView = findViewById(R.id.comic_list);
+        Comic[] comics = DataWorker.loadComicsList(sp);
+        if (comics != null) {
+            DataWorker.saveComicsList(sp, comics);
+            setListViewAdapter(comics, listView);
+        } else {
+            DataWorker.updateComicsList(sp);
+            @SuppressLint("StaticFieldLeak")
+            DataWorker.AsyncDownload ad = new DataWorker.AsyncDownload(DataWorker.server_url + "comiclist") {
+                @Override
+                void customOnPostExecute(String result) {
+                    sp.edit().putString("Comics", result).apply();
+                    Comic[] comics = Comic.arrayFromJson(result);
+                    DataWorker.saveComicsList(sp, comics);
+                    setListViewAdapter(comics, listView);
+                }
+            };
+            ad.execute();
+        }
+    }
 
+    private void setListViewAdapter(Comic[] comics, ListView listView) {
         Bitmap logo_placeholder = BitmapFactory.decodeResource(getResources(), R.mipmap.logo_placeholder);
 
         ComiclistAdapter adapter = new ComiclistAdapter(comics, logo_placeholder);
@@ -158,7 +181,7 @@ public class ComiclistActivity extends AppCompatActivity {
 
         @Override
         public int getCount() {
-            return comics.length;
+            return comics == null ? 0 : comics.length;
         }
 
         @Override

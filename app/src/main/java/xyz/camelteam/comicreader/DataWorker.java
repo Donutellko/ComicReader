@@ -5,7 +5,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.google.gson.Gson;
 
@@ -23,48 +22,6 @@ public class DataWorker {
 
     final static String server_url = "http://donutellko.azurewebsites.net/";
 
-    @Deprecated
-    final static String[] descriptions = {
-            "by Zach Weinersmith. Recurring themes include atheism, God, superheroes, romance, dating, science, research, parenting and the meaning of life.", // SMBC
-            "by Randall Munroe. A webcomic of romance, sarcasm, math, and language.", //XKCD
-            "by Рэндел Манро. Это вебкомикс о любви, сарказме, математике и языке. ", //XKCD
-            "by Mark Stanley. Научно-фантастический веб-комикс о злоключениях экипажа космического корабля «Свирепая курица»", // Freefall
-            "by Mark Stanley.  Set on a planet in the early stages of terraforming, the strip deals with the antics of alien spaceship \"captain\" Sam Starfall, his robot friend Helix, and their Bowman's Wolf engineer Florence Ambrose.", // Eng Freefall
-            "by Tim Buckley. A gaming-related webcomic and animated series.", //CAD
-            "Webcomics about life, science and other stuff I guess.", //TAY
-            "He's a cat. He plays video games.",//Gamercat
-            "He's a cat. He plays video games.",//Gamercat
-            "by Jago Dibuja.", // LWHAG
-            "page 271 out of 271", // SeqArt
-            "page 271 out of 271", // Sabrina
-    };
-
-
-    // Временный (или дефолтный, например) набор комиков
-    @SuppressWarnings("deprecation")
-    @Deprecated
-    static Comic[] comicsList = {
-            new Comic("Saturday Morning Breakfast Cereal", "SMBC", "EN", descriptions[0], "smbc-comics.com"),
-            new Comic("XKCD", "XKCD", "EN", descriptions[1], "xkcd.com"),
-            new Comic("XKCD", "XKCD", "RU", descriptions[2], "xkcd.ru"),
-            new Comic("Freefall", "Freefall", "RU", descriptions[3], "comicslate.org/sci-fi/freefall"),
-            new Comic("Freefall", "Freefall", "EN", descriptions[4], "http://freefall.purrsia.com"),
-            new Comic("Ctrl+Alt+Del", "CAD", "EN", descriptions[5], "cad-comic.com"),
-            new Comic("The Awkward Yeti", "TAY", "EN", descriptions[6], "theawkwardyeti.com/"),
-            new Comic("The GaMERCaT", "GaMERCaT", "RU", descriptions[7], "comicslate.org/gamer/gamercat"),
-            new Comic("The GaMERCaT", "GaMERCaT", "EN", descriptions[8], "thegamercat.com/"),
-            new Comic("Living with hipstergirl and gamergirl", "LWHAG", "RU", descriptions[9], "comicslate.org/gamer/lwhag"),
-            new Comic("Sequential Art", "SeqArt", "EN", descriptions[10], "collectedcurios.com/sequentialart.php"),
-            new Comic("Sabrina Online", "Sabrina", "EN", descriptions[11], "sabrina-online.com"),
-    };
-
-    /**
-     * Возвращает сериализованный объект комикса
-     */
-    public static String comicToJson(Comic comics) {
-        return new Gson().toJson(comics);
-    }
-
     /**
      * Возвращает сериализованный кортеж из переданного массива объектов комиксов без объектов страниц (только базовая информация)
      */
@@ -78,94 +35,52 @@ public class DataWorker {
     /**
      * Докачивает нужные страницы с сервера, если изменился timestamp
      */
-    static void update(Comic comic) {
+    @SuppressWarnings("unchecked")
+    @SuppressLint("StaticFieldLeak")
+    static void savePages(SharedPreferences sp, Comic comic) {
         // TODO: проверка timestamp
-        @SuppressLint("StaticFieldLeak")
-        AsyncTask downloader = new AsyncDownload(DataWorker.server_url + "pages/" + comic.shortName) {
+        new AsyncDownload(DataWorker.server_url + "pages/" + comic.shortName) {
             @Override
             void customOnPostExecute(String result) {
-                try {
-                    if (result.charAt(0) != '[')
-                        result = "[\n" + result + "\n]";
-                    Comic.Page[] pages = new Gson().fromJson(result, Comic.Page[].class);
-                    comic.pages = pages;
-                } catch (IllegalStateException e) {
-                    Log.e("Ошибка в JSON-файле: ", e.getMessage() + " " + result);
-                }
+                comic.pagesFromJson(result);
+                sp.edit().putString(comic.shortName, new Gson().toJson(comic.pages)).apply();
             }
-        };
-        downloader.execute();
+        }.execute();
     }
 
     /**
      * Скачивает с сервера и сохраняет в SharedPreferences список комиксов
      */
-    public static void updateComicsList(Context context) {
-        // TODO: получить и сохранить список с сервера
-        AsyncDownload ad = new AsyncDownload(DataWorker.server_url + "comiclist", context) {
+    public static void updateComicsList(SharedPreferences sp) {
+        @SuppressLint("StaticFieldLeak")
+        AsyncDownload ad = new AsyncDownload(DataWorker.server_url + "comiclist") {
             @Override
             void customOnPostExecute(String result) {
-                SharedPreferences sp = context.getSharedPreferences("Comics", Context.MODE_PRIVATE);
-                SharedPreferences.Editor se = sp.edit();
-                se.putString("Comics", result);
-                //Comic[] pages = new Gson().fromJson(result, Comic[].class);
+                sp.edit().putString("Comics", result).apply();
             }
         };
         ad.execute();
     }
 
     /**
-     * Получает с сервера указанные страницы и сохраняет изображения для них
-     * по умолчанию сохраняет все страницы
+     * Cохраняет изображения для страниц с from по to комикса
      */
     public static void saveEntirePages(Comic comic, int from, int to) {
         // TODO: получить с сервера указанные страницы (и сохранить изображения для них) указанного комикса
         // если numbers==null, то получить все страницы.
     }
 
-    public static void saveEntirePages(Comic comic) {
-        if (comic != null && comic.getLength() > 0)
-            saveEntirePages(comic, 0, comic.getLength());
-    }
-
-    @Deprecated
-    /** @see #updateComicPage(SharedPreferences, Comic) */
-    public static void updateComicPage(Context context, Comic comic) {
-        SharedPreferences sp = context.getSharedPreferences("Comics", Context.MODE_PRIVATE);
-        updateComicPage(sp, comic);
-    }
-
-    @Deprecated
-    /** @see #getComicsList(SharedPreferences) */
-    public static Comic[] getComicsList(Context context) {
-        SharedPreferences sp = context.getSharedPreferences("Comics", Context.MODE_PRIVATE);
-        return getComicsList(sp);
-    }
-
-    @Deprecated
-    /** @see #saveComicsList(SharedPreferences) */
-    public static void saveComicsList(Context context, Comic[] comics) {
-        SharedPreferences sp = context.getSharedPreferences("Comics", Context.MODE_PRIVATE);
-        saveComicsList(sp, comics);
-    }
-
-    @Deprecated
-    /** @see #getComic(SharedPreferences, String) */
-    public static Comic getComic(Context context, String name) {
-        SharedPreferences sp = context.getSharedPreferences("Comics", Context.MODE_PRIVATE);
-        return getComic(sp, name);
-    }
-
     /**
      * Обновляет номер страницы переданного комикса в SharedPreferences
      */
-    public static void updateComicPage(SharedPreferences sp, Comic comic) {
+    public static void updateComic(SharedPreferences sp, Comic comic) {
         String json = sp.getString("Comic list", "");
         if (json.length() == 0) return;
 
         Comic[] comics = Comic.arrayFromJson(json);
         for(Comic c : comics) {
             if (c.equals(comic)) {
+                Log.i("cstm: Updating curpage", "for " + c.shortName + ": " + comic.curpage);
                 c.curpage = comic.curpage;
                 sp.edit().putString("Comic list", new Gson().toJson(comics)).apply();
             }
@@ -176,15 +91,13 @@ public class DataWorker {
      * Загружает из SharedPreferences список комиксов с базовой информацией
      * @return массив из комиксов с базовой информацией
      */
-    public static Comic[] getComicsList(SharedPreferences sp) {
+    public static Comic[] loadComicsList(SharedPreferences sp) {
         String json = sp.getString("Comic list", "");
         Comic[] result = Comic.arrayFromJson(json);
 
-        if (json.length() == 0 || result.length == 0) {
-            saveComicsList(sp, comicsList);
-            return comicsList; // tmp default list
-        } else
+        if (json.length() > 0 && result.length > 0)
             return result;
+        return null;
     }
 
     public static void saveComicsList(SharedPreferences sp, Comic[] comics) {
@@ -194,14 +107,11 @@ public class DataWorker {
     /** Загружает полный объект комикса из SharedPreferences
      * @return комикс включая страницы
      */
-    public static Comic getComic(SharedPreferences sp, String name) {
+    public static Comic.Page[] getPages(SharedPreferences sp, String name) {
         Comic result;
         String json = sp.getString(name, "");
-        if (json.length() == 0)
-            return findComic(getComicsList(sp), name);
 
-        result = Comic.fromJson(json);
-        return result;
+        return json.length() == 0 ? null : new Gson().fromJson(json, Comic.Page[].class);
     }
 
     /**
@@ -247,12 +157,15 @@ public class DataWorker {
         return result;
     }
 
+    public static void saveAllImages(Comic current) {
+        // TODO
+    }
+
     /** Метод скачивает данные по URL
      *  В случае успеха передаёт управление абстрактному методу customOnPostExecute
      */
     abstract static class AsyncDownload extends AsyncTask {
         String url, result;
-        Context context;
 
         /**
          * @param url URL-адрес, данные по которому нужно получить
@@ -266,7 +179,6 @@ public class DataWorker {
          */
         public AsyncDownload(String url, Context context) {
             this.url = url;
-            this.context = context;
         }
 
         @Override

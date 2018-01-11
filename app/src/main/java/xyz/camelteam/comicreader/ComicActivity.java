@@ -1,6 +1,7 @@
 package xyz.camelteam.comicreader;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.widget.TextView;
@@ -14,10 +15,14 @@ public class ComicActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_comic);
 
-        String name = getIntent().getStringExtra("Comic title");
-        current = DataWorker.getComic(getApplicationContext(), name);
+        SharedPreferences sp = getSharedPreferences("Comics", MODE_PRIVATE);
 
-        DataWorker.update(current);
+        String shortName = getIntent().getStringExtra("Comic title");
+        current = DataWorker.findComic(DataWorker.loadComicsList(sp), shortName);
+        current.pages = DataWorker.getPages(sp, shortName);
+
+
+        DataWorker.savePages(sp, current);
 
         ((TextView) findViewById(R.id.comic_name)).setText(current.name);
         ((TextView) findViewById(R.id.comic_description)).setText(current.description);
@@ -26,8 +31,8 @@ public class ComicActivity extends AppCompatActivity {
                 : (current.curpage == 0 ? "Всего " + current.getLength() + " страниц." : "Страница " + current.curpage + " из " + current.getLength()));
 
         findViewById(R.id.comic_button_open).setOnClickListener(v -> openComic(current.shortName));
-        findViewById(R.id.comic_button_refresh).setOnClickListener(v -> DataWorker.update(current));
-        findViewById(R.id.comic_button_load_images).setOnClickListener(v -> DataWorker.saveEntirePages(current));
+        findViewById(R.id.comic_button_refresh).setOnClickListener(v -> DataWorker.savePages(sp, current));
+        findViewById(R.id.comic_button_load_images).setOnClickListener(v -> DataWorker.saveAllImages(current));
     }
 
 
@@ -40,6 +45,4 @@ public class ComicActivity extends AppCompatActivity {
         intent.putExtra("Comic title", name);
         startActivity(intent);
     }
-
-
 }
