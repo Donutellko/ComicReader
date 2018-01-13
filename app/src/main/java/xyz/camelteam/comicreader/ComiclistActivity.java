@@ -18,6 +18,7 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -52,6 +53,7 @@ public class ComiclistActivity extends AppCompatActivity {
         Comic[] comics = DataWorker.loadComicsList(sp);
         if (comics != null) {
             DataWorker.saveComicsList(sp, comics);
+            DataWorker.updateComicsList(sp);
             setListViewAdapter(comics, listView);
         } else {
             DataWorker.updateComicsList(sp);
@@ -165,8 +167,8 @@ public class ComiclistActivity extends AppCompatActivity {
             icon.setImageBitmap(c.logo != null ? c.logo : logo_placeholder);
 
             String name = "[" + c.lang + "] " + c.name;
-            if (name.length() > 35)
-                name = name.substring(0, 32).trim() + "...";
+            if (name.length() > 33)
+                name = name.substring(0, 31).trim() + "..";
 
             String desc = c.description;
             if (c.pages != null) desc = c.curpage + "/" + c.pages.length + "; " + desc;
@@ -209,16 +211,36 @@ public class ComiclistActivity extends AppCompatActivity {
 
         @Override
         protected Object doInBackground(Object[] objects) {
+            // c.logo = FileWorker.singleton.getLogo(c);
+            // publishProgress();
+
+            // Сначала загружаем из памяти, отображаем их
             for (Comic c : comics) {
-                c.logo = FileWorker.singleton.getLogo(c);
+                File logo = new File(FileWorker.singleton.logoDir + "/" + c.shortName + ".png");
+                if (logo.exists())
+                    c.logo = FileWorker.singleton.getImage(logo);
+            }
+            publishProgress();
+
+            // Только затем пытаемся добыть из инета
+            for (Comic c : comics) {
+                File logo = new File(FileWorker.singleton.logoDir + "/" + c.shortName + ".png");
+                if (!logo.exists())
+                    c.logo = FileWorker.singleton.getImage(c.getLogoUrl(), logo);
             }
             return null;
         }
 
         @Override
-        protected void onPostExecute(Object o) {
+        protected void onProgressUpdate(Object[] values) {
+            super.onProgressUpdate(values);
             if (adapter != null)
                 adapter.notifyDataSetChanged();
+        }
+
+        @Override
+        protected void onPostExecute(Object o) {
+            // Всё и так делается в onProgressUpdate
         }
     }
 }

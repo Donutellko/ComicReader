@@ -61,7 +61,7 @@ public class PageActivity extends AppCompatActivity {
                 String text = v.getText().toString();
                 if (text.length() == 0) return false;
                 int val = -1 + Integer.parseInt(text);
-                if (val > 0 && val < current.pages.length) current.curpage = val;
+                if (val >= 0 && val < current.pages.length) current.curpage = val;
                 updatePage();
                 return true;
             }
@@ -92,7 +92,7 @@ public class PageActivity extends AppCompatActivity {
         if (currentTask != null) currentTask.cancel(true); // завершаем предыдущий процесс наполнения страницы
         currentTask = new AsyncPageFiller(findViewById(R.id.page), current);
         currentTask.execute(); // TODO: показывать прогресс загрузки изображения (например так: https://toster.ru/q/327193)
-        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN); // Отменяет автоматическое появление клавиатуры
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN); // Отменяет появление клавиатуры
     }
 
     /** Записывает в sharedPreferences номер текущей страницы комикса */
@@ -129,7 +129,8 @@ public class PageActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    /** Заполняет полученный View информацией о текущей странице загружает туда Bitmap и скачивает изображения для соседних страниц */
+    /** Заполняет полученный View информацией о текущей странице загружает туда Bitmap
+     * и скачивает изображения для соседних страниц */
     static class AsyncPageFiller extends AsyncTask {
         View view;
         Comic comic;
@@ -146,7 +147,7 @@ public class PageActivity extends AppCompatActivity {
         protected void onPreExecute() {
             Comic.Page p = comic.getPage();
             if (p == null)
-                p = new Comic.Page("Page is not found", "Page is not found", null, null, null);
+                p = new Comic.Page("Page not found", "Page not found", null, null, null);
 
             ((TextView) view.findViewById(R.id.page_name)).setText(p.title);
             ((TextView) view.findViewById(R.id.page_desc)).setText(p.description);
@@ -163,10 +164,10 @@ public class PageActivity extends AppCompatActivity {
         protected Object doInBackground(Object[] objects) {
             int a = comic.curpage;
             if (a < comic.getLength() - 1)
-                FileWorker.singleton.saveImage(comic, a + 1);
+                FileWorker.singleton.saveImage(comic, a + 1); // Выполняется асинхронно
             if (a > 0)
-                FileWorker.singleton.saveImage(comic, a - 1);
-            bm = FileWorker.singleton.getImage(comic, a);
+                FileWorker.singleton.saveImage(comic, a - 1); // Выполняется асинхронно
+            bm = FileWorker.singleton.getImage(comic, a); // Дожидается выполнения
             return null;
         }
 

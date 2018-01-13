@@ -51,7 +51,10 @@ public class FileWorker {
         if (comic == null) return;
         Comic.Page p = comic.getPage(page);
         if (p == null) return;
-        File file = new File(stripDir + "/" + comic.shortName + "/" + p.title + ".png");
+
+        if (p.title == null || p.title.equals("")) p.title = "Page " + (page + 1);
+        String ext = p.imgUrl.substring(1 + p.imgUrl.lastIndexOf('.'));
+        File file = new File(stripDir + "/" + comic.shortName + "/" + p.title + '.' + ext);
 
         if (!file.exists()) {
             file.getParentFile().mkdirs();
@@ -76,7 +79,10 @@ public class FileWorker {
         if (comic == null) return null;
         Comic.Page p = comic.getPage(page);
         if (p == null) return null;
-        File file = new File(stripDir + "/" + comic.shortName + "/" + p.title + ".png");
+
+        if (p.title == null || p.title.equals("")) p.title = "Page " + (page + 1);
+        String ext = p.imgUrl.substring(1 + p.imgUrl.lastIndexOf('.'));
+        File file = new File(stripDir + "/" + comic.shortName + "/" + p.title + '.' + ext);
 
         if (file.exists())
             return getImage(file);

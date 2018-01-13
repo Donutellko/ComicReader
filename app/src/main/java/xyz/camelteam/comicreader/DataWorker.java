@@ -56,7 +56,7 @@ public class DataWorker {
         AsyncDownload ad = new AsyncDownload(DataWorker.server_url + "comiclist") {
             @Override
             void customOnPostExecute(String result) {
-                sp.edit().putString("Comics", result).apply();
+                sp.edit().putString("Comic list", result).apply();
             }
         };
         ad.execute();
@@ -143,7 +143,7 @@ public class DataWorker {
                 while ((read = reader.read(chars)) != -1)
                     buffer.append(chars, 0, read);
 
-                result = buffer.toString();
+                result = unescapeUtf(buffer.toString()); // Заменяет всякие мерзкие \\u0027 на апострофы и типа того
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
@@ -155,6 +155,18 @@ public class DataWorker {
         }
 
         return result;
+    }
+
+    /**
+     * Метод заменяет коды символов на сами символы, например, \u0026#39 на '
+     */
+    static String unescapeUtf(String s) {
+        String r;
+        //r = s.replaceAll("\\u0026", "&");
+        r = s.replaceAll("\\u0027", "'");
+        //r = r.replaceAll("&#39;", "'");
+        //r = r.replaceAll("&quot;", "\"");
+        return r;
     }
 
     public static void saveAllImages(Comic current) {

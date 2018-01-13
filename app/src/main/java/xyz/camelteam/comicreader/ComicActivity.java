@@ -28,7 +28,8 @@ public class ComicActivity extends AppCompatActivity {
         ((TextView) findViewById(R.id.comic_description)).setText(current.description);
         ((TextView) findViewById(R.id.comic_curpage)).setText(current.getLength() == 0 ?
                 "Нет доступных страниц. Попробуйте обновить их список."
-                : (current.curpage == 0 ? "Всего " + current.getLength() + " страниц." : "Страница " + current.curpage + " из " + current.getLength()));
+                : (current.curpage == 0 ? "Всего " + current.getLength() + " страниц." :
+                "Страница " + current.curpage + " из " + current.getLength()));
 
         findViewById(R.id.comic_button_open).setOnClickListener(v -> openComic(current.shortName));
         findViewById(R.id.comic_button_refresh).setOnClickListener(v -> DataWorker.savePages(sp, current));

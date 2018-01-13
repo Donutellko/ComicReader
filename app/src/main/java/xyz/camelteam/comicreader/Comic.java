@@ -88,11 +88,14 @@ public class Comic {
 
     public void pagesFromJson(String result) {
         try {
-            if (result.charAt(0) != '[')
-                result = "[\n" + result + "\n]";
+            if (result.charAt(0) != '[') result = "[\n" + result;
+            if (result.lastIndexOf(',') > result.length() - 5) result = result.substring(0, result.lastIndexOf(','));
+            if (result.charAt(result.length() - 1) != ']') result = result + "\n]";
             pages = new Gson().fromJson(result, Comic.Page[].class);
-        } catch (IllegalStateException e) {
-            Log.e("Ошибка в JSON-файле: ", e.getMessage() + " " + result);
+            Log.i("Получены страницы", pages == null ? "Пустой массив" : "Всего: " + pages.length);
+        } catch (Exception e) {
+            Log.e("Ошибка в JSON-файле: ", e.getMessage() + "\n Фрагмент результата: " +
+                    (result.length() <  80 ? result : result.substring(0,  40) + " <...> " + result.substring(result.length() - 40)));
         }
     }
 
@@ -107,7 +110,6 @@ public class Comic {
     public static class Page {
         String title, description, thisUrl, imgUrl, bonusUrl;
 
-        // example: new Comic.Page(245, "Dad jokes", "I feel like we shouldn't consider bonobos as sapient until they can write something about human life as a sunset or the end of a long road or something.", "https://www.smbc-comics.com/comic/dad-jokes", "https://www.smbc-comics.com/comics/1450366623-20151217.png");
         public Page(String title, String description, String thisUrl, String imgUrl, String bonusUrl) {
             this.title       = title;
             this.description = description;
