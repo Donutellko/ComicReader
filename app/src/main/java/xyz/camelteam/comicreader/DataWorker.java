@@ -2,16 +2,14 @@ package xyz.camelteam.comicreader;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.os.AsyncTask;
-import android.util.Log;
-
-import com.google.gson.Gson;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.net.URLConnection;
+
+import xyz.camelteam.comicreader.data.ComicDBHelper;
 
 /** Класс для работы с локально сохранёнными данными: загрузки и сохранения:
      * объектов комиксов
@@ -20,43 +18,32 @@ import java.net.URLConnection;
  */
 public class DataWorker {
 
-    final static String server_url = "http://donutellko.azurewebsites.net/";
-
-    /**
-     * Возвращает сериализованный кортеж из переданного массива объектов комиксов без объектов страниц (только базовая информация)
-     */
-    public static String comicsListToJson(Comic[] comics) {
-        Comic[] simpleComics = comics.clone();
-        for (int i = 0; i < comics.length; i++)
-            simpleComics[i].pages = null;
-        return Comic.toJson(simpleComics);
-    }
+    static ComicDBHelper DbHelper;
 
     /**
      * Докачивает нужные страницы с сервера, если изменился timestamp
      */
     @SuppressWarnings("unchecked")
     @SuppressLint("StaticFieldLeak")
-    static void savePages(SharedPreferences sp, Comic comic) {
+    static void savePages(Comic comic) {
         // TODO: проверка timestamp
-        new AsyncDownload(DataWorker.server_url + "pages/" + comic.shortName) {
+        new AsyncDownload(HttpHelper.getPagesUrl(comic.getId(), comic.timestamp)) {
             @Override
             void customOnPostExecute(String result) {
-                comic.pagesFromJson(result);
-                sp.edit().putString(comic.shortName, new Gson().toJson(comic.pages)).apply();
+                DbHelper.savePages(comic.getId(), result);
             }
         }.execute();
     }
 
     /**
-     * Скачивает с сервера и сохраняет в SharedPreferences список комиксов
+     * Скачивает с сервера и сохраняет в БД список комиксов
      */
-    public static void updateComicsList(SharedPreferences sp) {
+    public static void updateComicsList() {
         @SuppressLint("StaticFieldLeak")
-        AsyncDownload ad = new AsyncDownload(DataWorker.server_url + "comiclist") {
+        AsyncDownload ad = new AsyncDownload(HttpHelper.getComiclistUrl()) {
             @Override
             void customOnPostExecute(String result) {
-                sp.edit().putString("Comic list", result).apply();
+                // TODO
             }
         };
         ad.execute();
@@ -65,66 +52,14 @@ public class DataWorker {
     /**
      * Cохраняет изображения для страниц с from по to комикса
      */
-    public static void saveEntirePages(Comic comic, int from, int to) {
-        // TODO: получить с сервера указанные страницы (и сохранить изображения для них) указанного комикса
-        // если numbers==null, то получить все страницы.
+    public static void saveEntirePages(Comic comiс) {
+        // TODO: получить с сервера указанные страницы и сохранить изображения для них указанного комикса
     }
 
-    /**
-     * Обновляет номер страницы переданного комикса в SharedPreferences
+    /** Получает информацию по переданной ссылке
+     * Не вызывать в Main потоке!!!
+     *
      */
-    public static void updateComic(SharedPreferences sp, Comic comic) {
-        String json = sp.getString("Comic list", "");
-        if (json.length() == 0) return;
-
-        Comic[] comics = Comic.arrayFromJson(json);
-        for(Comic c : comics) {
-            if (c.equals(comic)) {
-                Log.i("cstm: Updating curpage", "for " + c.shortName + ": " + comic.curpage);
-                c.curpage = comic.curpage;
-                sp.edit().putString("Comic list", new Gson().toJson(comics)).apply();
-            }
-        }
-    }
-
-    /**
-     * Загружает из SharedPreferences список комиксов с базовой информацией
-     * @return массив из комиксов с базовой информацией
-     */
-    public static Comic[] loadComicsList(SharedPreferences sp) {
-        String json = sp.getString("Comic list", "");
-        Comic[] result = Comic.arrayFromJson(json);
-
-        if (json.length() > 0 && result.length > 0)
-            return result;
-        return null;
-    }
-
-    public static void saveComicsList(SharedPreferences sp, Comic[] comics) {
-        sp.edit().putString("Comic list", new Gson().toJson(comics)).apply();
-    }
-
-    /** Загружает полный объект комикса из SharedPreferences
-     * @return комикс включая страницы
-     */
-    public static Comic.Page[] getPages(SharedPreferences sp, String name) {
-        Comic result;
-        String json = sp.getString(name, "");
-
-        return json.length() == 0 ? null : new Gson().fromJson(json, Comic.Page[].class);
-    }
-
-    /**
-     * Ищет в переданном списке комикс с таким же именем
-     */
-    public static Comic findComic(Comic[] comics, String name) {
-        for (Comic c : comics)
-            if (c.name.equals(name) || c.shortName.equals(name))
-                return c;
-        return null;
-    }
-
-    // Не вызывать в Main потоке
     public static String getWebpage(String url_s) {
         String result = null;
         BufferedReader reader = null;
@@ -143,7 +78,7 @@ public class DataWorker {
                 while ((read = reader.read(chars)) != -1)
                     buffer.append(chars, 0, read);
 
-                result = unescapeUtf(buffer.toString()); // Заменяет всякие мерзкие \\u0027 на апострофы и типа того
+                result = HttpHelper.unescapeUtf(buffer.toString()); // Заменяет всякие мерзкие \\u0027 на апострофы и типа того
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
@@ -157,19 +92,11 @@ public class DataWorker {
         return result;
     }
 
-    /**
-     * Метод заменяет коды символов на сами символы, например, \u0026#39 на '
-     */
-    static String unescapeUtf(String s) {
-        String r;
-        //r = s.replaceAll("\\u0026", "&");
-        r = s.replaceAll("\\u0027", "'");
-        //r = r.replaceAll("&#39;", "'");
-        //r = r.replaceAll("&quot;", "\"");
-        return r;
+    public static void saveAllImages(Comic current) {
+        // TODO
     }
 
-    public static void saveAllImages(Comic current) {
+    public static void updatePages() {
         // TODO
     }
 

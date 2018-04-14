@@ -41,7 +41,7 @@ public class BasicImageDownloader {
 
     public void download(@NonNull final String imageUrl, final boolean displayProgress) {
         if (mUrlsInProgress.contains(imageUrl)) {
-            Log.w(TAG, "a download for this url is already running, " +
+            Log.d(TAG, "a download for this url is already running, " +
                     "no further download will be started");
             return;
         }
@@ -53,7 +53,7 @@ public class BasicImageDownloader {
             @Override
             protected void onPreExecute() {
                 mUrlsInProgress.add(imageUrl);
-                Log.d(TAG, "starting download");
+                Log.d(TAG, "Started downloading: " + imageUrl);
             }
 
             @Override
@@ -123,7 +123,7 @@ public class BasicImageDownloader {
             @Override
             protected void onPostExecute(Bitmap result) {
                 if (result == null) {
-                    Log.e(TAG, "factory returned a null result");
+                    Log.d(TAG, "factory returned a null result");
                     mImageLoaderListener.onError(new ImageError("downloaded file could not be decoded as bitmap")
                             .setErrorCode(ImageError.ERROR_DECODE_FAILED));
                 } else {

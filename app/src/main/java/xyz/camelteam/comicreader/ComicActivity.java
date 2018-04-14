@@ -1,13 +1,15 @@
 package xyz.camelteam.comicreader;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.TextView;
 
-public class ComicActivity extends AppCompatActivity {
+import xyz.camelteam.comicreader.data.ComicDBHelper;
 
+public class ComicActivity extends AppCompatActivity {
+    static final String intentName = "Comic id";
     Comic current;
 
     @Override
@@ -15,24 +17,20 @@ public class ComicActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_comic);
 
-        SharedPreferences sp = getSharedPreferences("Comics", MODE_PRIVATE);
+        int comicId = getIntent().getIntExtra(intentName, -1);
+        if (comicId == -1) Log.e("Ошибка в интенте!", "Передано значение " + intentName + " = -1");
+        current = ComicDBHelper.singletone.getComic(comicId);
+        int pagescount = ComicDBHelper.singletone.pagesCount(comicId);
 
-        String shortName = getIntent().getStringExtra("Comic title");
-        current = DataWorker.findComic(DataWorker.loadComicsList(sp), shortName);
-        current.pages = DataWorker.getPages(sp, shortName);
-
-
-        DataWorker.savePages(sp, current);
-
-        ((TextView) findViewById(R.id.comic_name)).setText(current.name);
+        ((TextView) findViewById(R.id.comic_name)).setText(current.title);
         ((TextView) findViewById(R.id.comic_description)).setText(current.description);
-        ((TextView) findViewById(R.id.comic_curpage)).setText(current.getLength() == 0 ?
+        ((TextView) findViewById(R.id.comic_curpage)).setText(pagescount == 0 ?
                 "Нет доступных страниц. Попробуйте обновить их список."
-                : (current.curpage == 0 ? "Всего " + current.getLength() + " страниц." :
-                "Страница " + current.curpage + " из " + current.getLength()));
+                : (current.curpage == 0 ? "Всего " + pagescount + " страниц." :
+                "Страница " + current.curpage + " из " + pagescount));
 
-        findViewById(R.id.comic_button_open).setOnClickListener(v -> openComic(current.shortName));
-        findViewById(R.id.comic_button_refresh).setOnClickListener(v -> DataWorker.savePages(sp, current));
+        findViewById(R.id.comic_button_open).setOnClickListener(v -> openComic(comicId));
+        findViewById(R.id.comic_button_refresh).setOnClickListener(v -> DataWorker.savePages(current));
         findViewById(R.id.comic_button_load_images).setOnClickListener(v -> DataWorker.saveAllImages(current));
     }
 
@@ -40,10 +38,10 @@ public class ComicActivity extends AppCompatActivity {
     /** Открывает PageActivity
      * помещает в Intent название комикса, который требуется открыть.
      * @see PageActivity#onCreate(Bundle)
-     * @param name Название комикса (желательно краткое, но полное тоже работает) */
-    private void openComic(String name) {
+     * @param name Название комикса (желательно краткое, но полное тоже работает)  */
+    private void openComic(int name) {
         Intent intent = new Intent(ComicActivity.this, PageActivity.class);
-        intent.putExtra("Comic title", name);
+        intent.putExtra(intentName, name);
         startActivity(intent);
     }
 }

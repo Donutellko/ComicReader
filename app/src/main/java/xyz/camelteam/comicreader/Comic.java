@@ -8,30 +8,39 @@ import com.google.gson.Gson;
 /** Класс хранит информацию о конкретном комиксе и объекты его страниц
  */
 public class Comic {
-    public String name, shortName, lang, description, link, logoUrl;
-    int curpage = 0;
-    long timestamp;
-    public Bitmap logo;
-    Page[] pages;
+    private int comic_id;
+    public String title, description, author, main_url, orig_url, logo_url, logo_path, lang, source;
+    public int timestamp = -1, curpage = 0, pagescount = -1;
 
-    /**
-     * @param name Название
-     * @param shortName Краткое название (не более 10 символов), используется в именах папок и файлов
-     * @param lang Язык комикса
-     * @param description Описание
-     * @param link Ссылка на главную страницу комикса в интернете
-     */
-
-    public Comic(String name, String shortName, String lang, String description, String link) {
-        this.name = name;
-        this.shortName = shortName;
+    public Comic(int comic_id, String title, String lang, String description, String author, String logo_url, String logo_path, int pagescount) {
+        this.comic_id = comic_id;
+        this.title = title;
         this.lang = lang;
         this.description = description;
-        this.link = link;
+        this.author = author;
+        this.logo_url = logo_url;
+        this.logo_path = logo_path;
+        this.pagescount = pagescount;
+    }
 
-        logoUrl = DataWorker.server_url + "logo/" + shortName + ".png";
-        timestamp = 0L;
-        pages = null;
+    public Comic(int comic_id, String title, String description, String author, String main_url, String orig_url, String logo_url, String logo_path, String lang, String source, int timestamp, int curpage, int pagescount) {
+        this.comic_id = comic_id;
+        this.title = title;
+        this.description = description;
+        this.author = author;
+        this.main_url = main_url;
+        this.orig_url = orig_url;
+        this.logo_url = logo_url;
+        this.logo_path = logo_path;
+        this.lang = lang;
+        this.source = source;
+        this.timestamp = timestamp;
+        this.curpage = curpage;
+        this.pagescount = pagescount;
+    }
+
+    public int getId() {
+        return comic_id;
     }
 
     /** Возвращает массив объектов комикса из JSON */
@@ -49,74 +58,12 @@ public class Comic {
         return new Gson().toJson(comics);
     }
 
-    /** Возвращает объект текущей страницы. */
-    public Page getPage() {
-        return getPage(curpage);
-    }
-
-    /** Возвращает объект страницы с требуемым номером.
-     * Подразумевается, что переданный номер становится текущим номером страницы.
-     * Если такой страницы нет, возвращает null
-     * @param number положительное число не более длины массива pages
-     */
-    Page getPage(int number) {
-        if (pages != null && pages.length + 1 >= number)
-            return pages[number];
-        else return null;
-    }
-
     /**
      * Считаем ссылку уникальным идентификатором комикса
      * */
     @Override
     public boolean equals(Object obj) {
-        return (obj instanceof Comic) && link.equals(((Comic) obj).link);
-    }
-
-    /**
-     * Проверка того, удовлетворяет ли этот комикс переданному фильтру
-     * Пока что возвращает только true
-     * @param filter ещё не знаю, какого типа будет этот параметр
-     */
-    public boolean matchesFilter(int[] filter) {
-        return true; // TODO
-    }
-
-    public int getLength() {
-        return pages == null ? 0 : pages.length;
-    }
-
-    public void pagesFromJson(String result) {
-        try {
-            if (result.charAt(0) != '[') result = "[\n" + result;
-            if (result.lastIndexOf(',') > result.length() - 5) result = result.substring(0, result.lastIndexOf(','));
-            if (result.charAt(result.length() - 1) != ']') result = result + "\n]";
-            pages = new Gson().fromJson(result, Comic.Page[].class);
-            Log.i("Получены страницы", pages == null ? "Пустой массив" : "Всего: " + pages.length);
-        } catch (Exception e) {
-            Log.e("Ошибка в JSON-файле: ", e.getMessage() + "\n Фрагмент результата: " +
-                    (result.length() <  80 ? result : result.substring(0,  40) + " <...> " + result.substring(result.length() - 40)));
-        }
-    }
-
-    public String getLogoUrl() {
-        return logoUrl != null ? logoUrl : DataWorker.server_url + "logo/" + shortName + ".png";
-    }
-
-    /**
-     * Класс страницы комикса.
-     * Содержит информацию о себе, ссылку на её страницу, url изображения и локальный путь к изображению
-     */
-    public static class Page {
-        String title, description, thisUrl, imgUrl, bonusUrl;
-
-        public Page(String title, String description, String thisUrl, String imgUrl, String bonusUrl) {
-            this.title       = title;
-            this.description = description;
-            this.thisUrl     = thisUrl;
-            this.imgUrl      = imgUrl;
-            this.bonusUrl    = bonusUrl;
-        }
+        return (obj instanceof Comic) && main_url.equals(((Comic) obj).main_url);
     }
 }
 
