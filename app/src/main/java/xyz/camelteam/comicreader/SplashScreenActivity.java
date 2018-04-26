@@ -11,7 +11,7 @@ public class SplashScreenActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        Log.i("SplashScreen", "SplashScreen launched.");
+        Log.i("% SplashScreen", "SplashScreen launched.");
 
         Intent intent = new Intent(this, ComiclistActivity.class);
         startActivity(intent);

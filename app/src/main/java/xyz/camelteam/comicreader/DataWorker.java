@@ -3,6 +3,7 @@ package xyz.camelteam.comicreader;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.os.AsyncTask;
+import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -30,23 +31,10 @@ public class DataWorker {
         new AsyncDownload(HttpHelper.getPagesUrl(comic.getId(), comic.timestamp)) {
             @Override
             void customOnPostExecute(String result) {
-                DbHelper.savePages(comic.getId(), result);
+                HttpHelper.PageslistResponse response = JsonHelper.getPageslistResponse(result);
+                DbHelper.putPages(comic.getId(), response.pages);
             }
         }.execute();
-    }
-
-    /**
-     * Скачивает с сервера и сохраняет в БД список комиксов
-     */
-    public static void updateComicsList() {
-        @SuppressLint("StaticFieldLeak")
-        AsyncDownload ad = new AsyncDownload(HttpHelper.getComiclistUrl()) {
-            @Override
-            void customOnPostExecute(String result) {
-                // TODO
-            }
-        };
-        ad.execute();
     }
 
     /**
@@ -96,8 +84,21 @@ public class DataWorker {
         // TODO
     }
 
-    public static void updatePages() {
-        // TODO
+    public static void updatePages(Comic comic) {
+        AsyncDownload ac = new AsyncDownload(HttpHelper.getPagesUrl(comic.getId())) {
+            @Override
+            void customOnPostExecute(String result) {
+                HttpHelper.PageslistResponse pr = JsonHelper.getPageslistResponse(result);
+                if (pr == null) {
+                    Log.i("% updatePages", "Got null in response");
+                    return;
+                }
+                Page[] pages = pr == null ? null : pr.pages;
+                ComicDBHelper.singletone.putPages(comic.getId(), pages);
+            }
+        };
+        ac.execute();
+
     }
 
     /** Метод скачивает данные по URL

@@ -2,8 +2,11 @@ package xyz.camelteam.comicreader.data;
 
 import android.content.Context;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteConstraintException;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.database.sqlite.SQLiteStatement;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -19,8 +22,10 @@ import xyz.camelteam.comicreader.data.ComicsContract.*;
  */
 
 public class ComicDBHelper extends SQLiteOpenHelper {
-    public static final String LOG_TAG = ComicDBHelper.class.getSimpleName();
+    public static final String LOG_TAG = "% " + ComicDBHelper.class.getSimpleName();
     public static ComicDBHelper singletone;
+
+    private static SQLiteDatabase writableDb, readableDb;
 
     /** Имя файла базы данных */
     private static final String DATABASE_NAME = "comics.db";
@@ -31,11 +36,15 @@ public class ComicDBHelper extends SQLiteOpenHelper {
     public ComicDBHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
         singletone = this;
+        if (writableDb == null) writableDb = getWritableDatabase();
+        if (readableDb == null) readableDb = getReadableDatabase();
     }
 
     /** Вызывается при создании базы данных */
     @Override
     public void onCreate(SQLiteDatabase db) {
+        writableDb = db;
+
         // Строка для создания таблицы
         String SQL_CREATE_COMIC_TABLE = "CREATE TABLE " + ComicEntry.TABLE_NAME + " (" +
                 ComicEntry.COLUMN_ID + " integer, " +
@@ -55,7 +64,6 @@ public class ComicDBHelper extends SQLiteOpenHelper {
                 "); ";
 
         String SQL_CREATE_CATEGORY_TABLE = "CREATE TABLE " + CategoryEntry.TABLE_NAME + " (" +
-//                CategoryEntry._ID         + " integer, " +
                 CategoryEntry.COLUMN_NAME + " text not null, " +
                 CategoryEntry.COLUMN_TYPE + " text, " +
                 " primary key (" + CategoryEntry.COLUMN_NAME + ")" +
@@ -64,9 +72,12 @@ public class ComicDBHelper extends SQLiteOpenHelper {
         String SQL_CREATE_COMIC_CATEGORY_TABLE = "CREATE TABLE " + ComicCategoryEntry.TABLE_NAME + " (" +
                 ComicCategoryEntry.COLUMN_COMIC_ID    + " integer, " +
                 ComicCategoryEntry.COLUMN_CATEGORY_ID + " integer, " +
-                "primary key (" + ComicCategoryEntry.COLUMN_COMIC_ID + ", " + ComicCategoryEntry.COLUMN_CATEGORY_ID + "), " +
-                "foreign key (" + ComicCategoryEntry.COLUMN_COMIC_ID + ") references COMIC(" + ComicCategoryEntry.COLUMN_COMIC_ID + "), " +
-                "foreign key (" + ComicCategoryEntry.COLUMN_CATEGORY_ID + ") references CATEGORY(" + ComicCategoryEntry.COLUMN_CATEGORY_ID + ")" +
+                "primary key (" + ComicCategoryEntry.COLUMN_COMIC_ID + ", "
+                    + ComicCategoryEntry.COLUMN_CATEGORY_ID + "), " +
+                "foreign key (" + ComicCategoryEntry.COLUMN_COMIC_ID + ") references COMIC("
+                    + ComicCategoryEntry.COLUMN_COMIC_ID + "), " +
+                "foreign key (" + ComicCategoryEntry.COLUMN_CATEGORY_ID + ") references CATEGORY("
+                    + ComicCategoryEntry.COLUMN_CATEGORY_ID + ")" +
                 "); ";
 
         // Запускаем создание таблиц
@@ -75,8 +86,7 @@ public class ComicDBHelper extends SQLiteOpenHelper {
         db.execSQL(SQL_CREATE_COMIC_CATEGORY_TABLE);
 
 
-        Log.i("DATABASE", "Put default values into COMIC table.");
-        putDefaultComiclist(db); // TODO: убрать после тестирования
+        Log.i(LOG_TAG, "Put default values into COMIC table.");
     }
 
     /**
@@ -84,6 +94,7 @@ public class ComicDBHelper extends SQLiteOpenHelper {
      */
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        writableDb = db;
         // TODO: следи за этим!
     }
 
@@ -102,11 +113,16 @@ public class ComicDBHelper extends SQLiteOpenHelper {
                 ComicpageEntry.COLUMN_PAGE_URL    + " text, " +
                 ComicpageEntry.COLUMN_BONUS_URL   + " text, " +
                 ComicpageEntry.COLUMN_BONUS_PATH  + " text, " +
-                "primary key (" + ComicpageEntry.COLUMN_NUMBER +
+                ComicpageEntry.COLUMN_TIMESTAMP   + " integer, " +
+                "primary key (" + ComicpageEntry.COLUMN_NUMBER + ")" +
                 ");";
 
-        SQLiteDatabase db = getWritableDatabase();
-        db.execSQL(SQL_CREATE_COMICPAGE_TABLE);
+        try {
+            writableDb.execSQL(SQL_CREATE_COMICPAGE_TABLE);
+        } catch (SQLiteException e) {
+            if (!e.getMessage().contains("already exists")) // Игнорируем сообщение о том, что уже существует
+                throw e;
+        }
     }
 
     public Comic[] getComiclist() {
@@ -120,46 +136,43 @@ public class ComicDBHelper extends SQLiteOpenHelper {
      * @return Список объектов Comic, содержащих название, язык, описание, имя автора.
      */
     public Comic[] getComiclist(String lang, String category) { // TODO: Категории
-        String query =
-                "SELECT "
-                        + ComicEntry.COLUMN_ID + ", "
-                        + ComicEntry.COLUMN_TITLE + ", "
-                        + ComicEntry.COLUMN_DESCRIPTION + ", "
-                        + ComicEntry.COLUMN_AUTHOR + ", "
-                        + ComicEntry.COLUMN_LANG + ", "
-                        + ComicEntry.COLUMN_LOGO_PATH + ", "
-                        + ComicEntry.COLUMN_LOGO_URL +
-                        " FROM " + ComicEntry.TABLE_NAME;
+        String[] columns = new String[] {
+                ComicEntry.COLUMN_ID,
+                ComicEntry.COLUMN_TITLE,
+                ComicEntry.COLUMN_LANG,
+                ComicEntry.COLUMN_DESCRIPTION,
+                ComicEntry.COLUMN_AUTHOR,
+                ComicEntry.COLUMN_LOGO_URL,
+                ComicEntry.COLUMN_LOGO_PATH
+        };
 
-        if (lang != null) query += "WHERE " + ComicEntry.COLUMN_LANG + "=\'" + lang + "\'";
-        query += ";";
+        String selection = null;
+        if (lang != null) selection = ComicEntry.COLUMN_LANG + "=\'" + lang + "\'";
+
+        Cursor cursor = readableDb.query(ComicEntry.TABLE_NAME, columns, selection,
+                null, null, null, null, null);
 
         ArrayList<Comic> comics = new ArrayList<>();
 
-        Cursor cursor = getReadableDatabase().rawQuery(query, null);
-        int
-                idIndex     = cursor.getColumnIndex(ComicEntry.COLUMN_ID),
-                titleIndex  = cursor.getColumnIndex(ComicEntry.COLUMN_TITLE),
-                descrIndex  = cursor.getColumnIndex(ComicEntry.COLUMN_DESCRIPTION),
-                authorIndex = cursor.getColumnIndex(ComicEntry.COLUMN_AUTHOR),
-                langIndex   = cursor.getColumnIndex(ComicEntry.COLUMN_LANG),
-                logoUIndex  = cursor.getColumnIndex(ComicEntry.COLUMN_LOGO_URL),
-                logoPIndex  = cursor.getColumnIndex(ComicEntry.COLUMN_LOGO_PATH);
-
+        int[] indexes = new int[columns.length];
+        for(int i = 0; i < indexes.length; i++)
+            indexes[i] = cursor.getColumnIndex(columns[i]);
 
         while (cursor.moveToNext()) {
             Comic c = new Comic(
-                    cursor.getInt(idIndex),
-                    cursor.getString(titleIndex),
-                    cursor.getString(langIndex),
-                    cursor.getString(descrIndex),
-                    cursor.getString(authorIndex),
-                    cursor.getString(logoUIndex),
-                    cursor.getString(logoPIndex),
+                    cursor.getInt   (indexes[0]), // ID
+                    cursor.getString(indexes[1]), // TITLE
+                    cursor.getString(indexes[2]), // LANG
+                    cursor.getString(indexes[3]), // DESCRIPTION
+                    cursor.getString(indexes[4]), // AUTHOR
+                    cursor.getString(indexes[5]), // LOGO_URL
+                    cursor.getString(indexes[6]), // LOGO_PATH
                     -1 //TODO
                     );
             comics.add(c);
         }
+
+        cursor.close();
 
         Comic[] result = new Comic[comics.size()];
         comics.toArray(result);
@@ -168,74 +181,87 @@ public class ComicDBHelper extends SQLiteOpenHelper {
 
     /**
      * Сохраняет переданный номер в качестве текущего номера страницы для комикса с переданным id
-     * @param id
-     * @param curpage
+     * @param comic_id COMIC_ID комикса
+     * @param curpage Новая текущая страница
      */
-    public void updatePage(int id, int curpage) {
-        // TODO: обновление номера текущей страницы
+    public void updateCurpage(int comic_id, int curpage) {
+        writableDb.execSQL(
+                "UPDATE " + ComicEntry.TABLE_NAME +
+                " SET " + ComicEntry.COLUMN_CURPAGE + "=" + curpage +
+                " WHERE " + ComicEntry.COLUMN_ID + "=" + comic_id +
+                ";");
+    }
+
+    /** Метод сохраняет переданные страницы комикса с переданным COMIC_ID.
+     */
+    public void putPages(int id, Page[] pages) {
+        if (pages == null || pages.length == 0) return;
+
+        createComicpages(id);
+
+        String query = "INSERT INTO " + ComicpageEntry.TABLE_PREFIX + id + " (" +
+                ComicpageEntry.COLUMN_NUMBER      + ", " +
+                ComicpageEntry.COLUMN_TITLE       + ", " +
+                ComicpageEntry.COLUMN_DESCRIPTION + ", " +
+                ComicpageEntry.COLUMN_PAGE_URL    + ", " +
+                ComicpageEntry.COLUMN_IMAGE_URL   + ", " +
+                ComicpageEntry.COLUMN_BONUS_URL   + ", " +
+                ComicpageEntry.COLUMN_TIMESTAMP   + " " +
+                ") VALUES (?, ?, ?, ?, ?, ?, ?);";
+
+        SQLiteStatement ps = writableDb.compileStatement(query);
+
+        for (Page p : pages) {
+            ps.bindLong(1, p.number);
+            ps.bindString(2, p.title       == null ? "''" : p.title);
+            ps.bindString(3, p.description == null ? "''" : p.description);
+            ps.bindString(4, p.page_url    == null ? "''" : p.page_url);
+            ps.bindString(5, p.img_url == null ? "''" : p.img_url);
+            ps.bindString(6, p.bonus_url   == null ? "''" : p.bonus_url);
+            ps.bindLong(7, p.timestamp);
+
+            try {
+                ps.execute();
+            } catch (Exception e) {
+                Log.i(LOG_TAG, "error while putting page");
+            }
+        }
     }
 
     /**
-     *
-     * @param id
-     * @param json массив объектов Page
+     * Удаляет страницы комикса с переданным COMIC_ID
      */
-    public void savePages(int id, String json) {
-        clearPages(id);
-        // TODO: десериализация json, сохранение его элементов в COMIC_<id>
+    public void clearPages(int comic_id) {
+        String query = "DROP TABLE COMIC_" + comic_id + " CASCADE CONSTRAINTS;";
+
+        writableDb.execSQL(query);
     }
 
-    /**
-     * Удаляет информацию о комиксе с переданным id
-     * @param id
-     */
-    public void clearPages(int id) {
-        // TODO: drop table COMIC_<id>
-    }
 
     public Comic getComic(int id) {
-        String query = "SELECT " +
-                " * " +
-                // ComicEntry.COLUMN_TITLE       + ", " +
-                // ComicEntry.COLUMN_DESCRIPTION + ", " +
-                // ComicEntry.COLUMN_LANG        + ", " +
-                // ComicEntry.COLUMN_AUTHOR      + ", " +
-                // ComicEntry.COLUMN_CURPAGE     + ", " +
-                // ComicEntry.COLUMN_SOURCE      + ", " +
-                // ComicEntry.COLUMN_MAIN_URL    + ", " +
-                // ComicEntry.COLUMN_ORIG_URL    + ", " +
-                // ComicEntry.COLUMN_LOGO_URL    + ", " +
-                // ComicEntry.COLUMN_TIMESTAMP   + ", " +
-                " FROM " + ComicEntry.TABLE_NAME +
-                " WHERE " + ComicEntry.COLUMN_ID + "=" + id + ";";
-        Cursor cursor = getReadableDatabase().rawQuery(query, null);
+        Cursor cursor = readableDb.query(ComicEntry.TABLE_NAME, null,
+                ComicEntry.COLUMN_ID + "=" + id, null, null,
+                null, null);
+        return cursor.moveToFirst() ? getComic(cursor) : null;
+    }
 
-        int titleInd   = cursor.getColumnIndex(ComicEntry.COLUMN_TITLE);
-        int descInd    = cursor.getColumnIndex(ComicEntry.COLUMN_DESCRIPTION);
-        int langInd    = cursor.getColumnIndex(ComicEntry.COLUMN_LANG);
-        int authorInd  = cursor.getColumnIndex(ComicEntry.COLUMN_AUTHOR);
-        int mainUInd   = cursor.getColumnIndex(ComicEntry.COLUMN_MAIN_URL);
-        int origUInd   = cursor.getColumnIndex(ComicEntry.COLUMN_ORIG_URL);
-        int logoUInd   = cursor.getColumnIndex(ComicEntry.COLUMN_LOGO_URL);
-        int logoPInd   = cursor.getColumnIndex(ComicEntry.COLUMN_LOGO_PATH);
-        int sourceInd  = cursor.getColumnIndex(ComicEntry.COLUMN_SOURCE);
-        int timestInd  = cursor.getColumnIndex(ComicEntry.COLUMN_TIMESTAMP);
-        int curpageInd = cursor.getColumnIndex(ComicEntry.COLUMN_CURPAGE);
-
-        Comic comic = new Comic(id,
-                cursor.getString(titleInd),
-                cursor.getString(descInd),
-                cursor.getString(authorInd),
-                cursor.getString(mainUInd),
-                cursor.getString(origUInd),
-                cursor.getString(logoUInd),
-                cursor.getString(logoPInd),
-                cursor.getString(langInd),
-                cursor.getString(sourceInd),
-                cursor.getInt(timestInd),
-                cursor.getInt(curpageInd),
-                -1 // TODO!!!
+    private Comic getComic(Cursor cursor) {
+        Comic comic = new Comic(
+                cursor.getInt   (cursor.getColumnIndex(ComicEntry.COLUMN_ID)),
+                cursor.getString(cursor.getColumnIndex(ComicEntry.COLUMN_TITLE)),
+                cursor.getString(cursor.getColumnIndex(ComicEntry.COLUMN_DESCRIPTION)),
+                cursor.getString(cursor.getColumnIndex(ComicEntry.COLUMN_LANG)),
+                cursor.getString(cursor.getColumnIndex(ComicEntry.COLUMN_AUTHOR)),
+                cursor.getString(cursor.getColumnIndex(ComicEntry.COLUMN_MAIN_URL)),
+                cursor.getString(cursor.getColumnIndex(ComicEntry.COLUMN_ORIG_URL)),
+                cursor.getString(cursor.getColumnIndex(ComicEntry.COLUMN_LOGO_URL)),
+                cursor.getString(cursor.getColumnIndex(ComicEntry.COLUMN_LOGO_PATH)),
+                cursor.getString(cursor.getColumnIndex(ComicEntry.COLUMN_SOURCE)),
+                cursor.getInt   (cursor.getColumnIndex(ComicEntry.COLUMN_TIMESTAMP)),
+                cursor.getInt   (cursor.getColumnIndex(ComicEntry.COLUMN_CURPAGE)),
+                -1 // TODO
         );
+
         return comic;
     }
 
@@ -243,62 +269,139 @@ public class ComicDBHelper extends SQLiteOpenHelper {
      *  Возвращает объект страницы под номером n комикса с переданным COMIC_ID
      */
     public Page getPage(int id, int n) {
-        return null; // TODO
+        try {
+            Cursor cursor = readableDb.query("COMIC_" + id, null,
+                    //ComicpageEntry.COLUMN_NUMBER + "=" + n
+                    null
+                    , null,
+                    null, null, null);
+            Log.i(LOG_TAG, "No page with number=" + n);
+            return cursor.moveToFirst() ? getPage(cursor) : null;
+        } catch (SQLiteException e) {
+            if (e.getMessage().startsWith("no such table")) {
+                createComicpages(id);
+                Log.i(LOG_TAG, "Creating table COMIC_" + id);
+            } else {
+                e.printStackTrace();
+            }
+            return null;
+        }
     }
 
-    public int pagesCount(int id) {
+    public Page getPage(Cursor cursor) {
+        String[] columns = new String[] {
+                ComicpageEntry.COLUMN_NUMBER,
+                ComicpageEntry.COLUMN_TITLE,
+                ComicpageEntry.COLUMN_DESCRIPTION,
+                ComicpageEntry.COLUMN_IMAGE_URL,
+                ComicpageEntry.COLUMN_IMAGE_PATH,
+                ComicpageEntry.COLUMN_PAGE_URL,
+                ComicpageEntry.COLUMN_BONUS_URL,
+                ComicpageEntry.COLUMN_BONUS_PATH,
+                ComicpageEntry.COLUMN_TIMESTAMP
+        };
+        int[] indexes = new int[columns.length];
+        for (int i = 0; i < indexes.length; i++)
+            indexes[i] = cursor.getColumnIndex(columns[i]);
+
+        Page page = new Page(
+                cursor.getInt(indexes[0]),
+                cursor.getString(indexes[1]),
+                cursor.getString(indexes[2]),
+                cursor.getString(indexes[3]),
+                cursor.getString(indexes[4]),
+                cursor.getString(indexes[5]),
+                cursor.getString(indexes[6]),
+                cursor.getString(indexes[7]),
+                cursor.getInt(indexes[8])
+        );
+
+        return page;
+    }
+
+    public int getPagesCount(int comic_id) {
         // TODO
         return 0;
     }
 
-    public void updateCurrentPage(int curpage) {
-        // TODO
+    public void putComics(Comic[] comics) {
+        Log.i(LOG_TAG, "Inserting into COMIC...");
+        long time = System.currentTimeMillis();
+
+        for (Comic c : comics) {
+
+
+            // Отвратительный костыль: сначала втыкаем в таблицу только COMIC_ID и TIMESTAMP=-1,
+            // чтобы затем обновить
+            try {
+                writableDb.execSQL(
+                        "INSERT INTO " + ComicEntry.TABLE_NAME + " ("
+                                + ComicEntry.COLUMN_ID + ", " + ComicEntry.COLUMN_TIMESTAMP
+                                + ", " + ComicEntry.COLUMN_TITLE
+                                + ") VALUES ("
+                                + c.getId() + ", -1, \'" + escape(c.title) + "\');"
+                );
+            } catch (SQLiteConstraintException e) {
+                Log.i(LOG_TAG, "Constraint failed while inserting " + c.title + ".");
+            }
+
+
+
+            String tmp = "UPDATE " + ComicEntry.TABLE_NAME + " SET \n";
+            tmp += ComicEntry.COLUMN_TIMESTAMP   + "="   + c.timestamp ;
+
+            tmp += concatSet(ComicEntry.COLUMN_ID         , c.getId());
+            tmp += concatSet(ComicEntry.COLUMN_PAGESCOUNT , c.pagescount);
+            tmp += concatSet(ComicEntry.COLUMN_CURPAGE    ,
+                    c.curpage == 0 ? 1: c.curpage); // TODO дичайший костыль, я хз откуда берётся curpage=0
+
+            tmp += concatSet(ComicEntry.COLUMN_TITLE      , c.title      );
+            tmp += concatSet(ComicEntry.COLUMN_DESCRIPTION, c.description);
+            tmp += concatSet(ComicEntry.COLUMN_AUTHOR     , c.author     );
+            tmp += concatSet(ComicEntry.COLUMN_MAIN_URL   , c.main_url   );
+            tmp += concatSet(ComicEntry.COLUMN_ORIG_URL   , c.orig_url   );
+            tmp += concatSet(ComicEntry.COLUMN_LOGO_URL   , c.logo_url   );
+            tmp += concatSet(ComicEntry.COLUMN_LOGO_PATH  , c.logo_path  );
+            tmp += concatSet(ComicEntry.COLUMN_LANG       , c.lang       );
+            tmp += concatSet(ComicEntry.COLUMN_SOURCE     , c.source     );
+
+            tmp += " WHERE " + ComicEntry.COLUMN_ID + " = " + c.getId() +
+                    " AND " + ComicEntry.COLUMN_TIMESTAMP  + " < " + c.timestamp + ";";
+
+            writableDb.execSQL(tmp);
+        }
+
+        Log.i(LOG_TAG, "Comiclist updated: добавлены или обновлены " + comics.length
+                + " комиксов за " + (System.currentTimeMillis() - time) + " мс.");
     }
 
-    public void saveComiclist(Comic[] comics) {
-        // TODO
+    private String concatSet(String name, String s) {
+        if (s == null || s.equals("")) return "";
+        else {
+            s = escape(s);
+            return ", " + name + "=\'" + s + "\'";
+        }
     }
 
-    private void putDefaultComiclist(SQLiteDatabase db) {
-        putComic(db, new Comic(0, "SMBC", "lol", "Zach", "smbc-comics.com", null, null, null, "RU", "enSMBC", -1, 3500, 4500));
-        putComic(db, new Comic(1, "XKCD", "kek", "Randall", "http://xkcd.com", null, null, null, "EN", "enXKCD", -1, 5, 3000));
-        putComic(db, new Comic(2, "XKCD rus", "kek rus", "Рэндалл", "http://xkcd.ru", null, null, null, "EN", "enXKCD", -1, 5, 3000));
+    private String concatSet(String name, int s) {
+        return ", " + name + "=\'" + s + "\'";
     }
 
-    private void putComic(SQLiteDatabase db, Comic comic) {
-        Log.i("DATABASE", "Insert into COMIC");
+    private String escape(String s) {
+        return s.replace("\'", "\'\'");
+    }
 
-        String SQL_PUT_COMIC =
-            "INSERT INTO " + ComicEntry.TABLE_NAME + " (\n" +
-                ComicEntry.COLUMN_ID          + ", " +
-                ComicEntry.COLUMN_TITLE       + ", " +
-                ComicEntry.COLUMN_DESCRIPTION + ", " +
-                ComicEntry.COLUMN_AUTHOR      + ", " +
-                ComicEntry.COLUMN_MAIN_URL    + ", " +
-                ComicEntry.COLUMN_ORIG_URL    + ", " +
-                ComicEntry.COLUMN_LOGO_URL    + ", " +
-                ComicEntry.COLUMN_LOGO_PATH   + ", " +
-                ComicEntry.COLUMN_LANG        + ", " +
-                ComicEntry.COLUMN_SOURCE      + ", " +
-                ComicEntry.COLUMN_TIMESTAMP   + ", " +
-                ComicEntry.COLUMN_CURPAGE     + ", " +
-                ComicEntry.COLUMN_PAGESCOUNT  + "" +
-            ") VALUES (\n" +
-                "\'" + comic.getId()     + "\', " +
-                "\'" + comic.title       + "\', " +
-                "\'" + comic.description + "\', " +
-                "\'" + comic.author      + "\', " +
-                "\'" + comic.main_url    + "\', " +
-                "\'" + comic.orig_url    + "\', " +
-                "\'" + comic.logo_url    + "\', " +
-                "\'" + comic.logo_path   + "\', " +
-                "\'" + comic.lang        + "\', " +
-                "\'" + comic.source      + "\', " +
-                "\'" + comic.timestamp   + "\', " +
-                "\'" + comic.curpage     + "\', " +
-                "\'" + comic.pagescount  + "\' " +
-            ");";
+    public Page[] getAllPages(int comicId) {
+        ArrayList<Page> list = new ArrayList<>();
 
-        db.execSQL(SQL_PUT_COMIC);
+        String sql = "SELECT * FROM " + ComicpageEntry.TABLE_PREFIX + comicId + ";";
+
+        Cursor cursor = readableDb.rawQuery(sql, null);
+        while (cursor.moveToNext())
+            list.add(getPage(cursor));
+
+        Page[] result = new Page[list.size()];
+        list.toArray(result);
+        return result;
     }
 }

@@ -18,9 +18,11 @@ public class ComicActivity extends AppCompatActivity {
         setContentView(R.layout.activity_comic);
 
         int comicId = getIntent().getIntExtra(intentName, -1);
-        if (comicId == -1) Log.e("Ошибка в интенте!", "Передано значение " + intentName + " = -1");
+
         current = ComicDBHelper.singletone.getComic(comicId);
-        int pagescount = ComicDBHelper.singletone.pagesCount(comicId);
+        int pagescount = ComicDBHelper.singletone.getPagesCount(comicId);
+
+        DataWorker.updatePages(current);
 
         ((TextView) findViewById(R.id.comic_name)).setText(current.title);
         ((TextView) findViewById(R.id.comic_description)).setText(current.description);

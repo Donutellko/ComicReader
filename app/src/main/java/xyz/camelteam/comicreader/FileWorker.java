@@ -2,6 +2,7 @@ package xyz.camelteam.comicreader;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.util.Log;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -38,9 +39,14 @@ public class FileWorker {
     }
 
     Bitmap getImage(String url, File path) {
+        if (url == null || path == null || path.length() == 0) {
+            Log.i("Downloading image", "url=\"" + url + "\", path=\"" + path + "\"");
+            return null;
+        }
         ImageDownloadListener listener = new ImageDownloadListener(path.getAbsolutePath());
         new BasicImageDownloader(listener).download(url, false);
         while (!listener.done);
+
         return getImage(path);
     }
 
@@ -61,17 +67,24 @@ public class FileWorker {
         if (comic == null) return null;
         Page p = ComicDBHelper.singletone.getPage(comic.getId(), page);
 
-        String ext = p.image_url.substring(1 + p.image_url.lastIndexOf('.'));
+        String ext = p.img_url.substring(1 + p.img_url.lastIndexOf('.'));
         File file = new File(stripDir + "/" + comic.getId() + "/" + p.number + '.' + ext);
 
         if (file.exists())
             return getImage(file);
         else
-            return getImage(p.image_url, file);
+            return getImage(p.img_url, file);
     }
 
+    /**
+     * Скачивает изображение, если его не существует, в папку соответствующего комикса
+     */
     public void saveImage(Comic comic, Page page) {
-        saveImage(page.image_url, FileWorker.singleton.getPath(comic, page));
+        String path = FileWorker.singleton.getPath(comic, page);
+        if (new File(path).exists())
+            return;
+
+        saveImage(page.img_url, path);
     }
 
     /**
@@ -81,12 +94,30 @@ public class FileWorker {
      * @return
      */
     public String getPath(Comic comic, Page page) {
-        if (page.image_path != null) return page.image_path;
+        if (page.img_path != null) return page.img_path;
 
-        page.image_path = stripDir + File.separator
+        page.img_path = stripDir + File.separator
                 + comic.getId() + File.separator
-                + "page" + page.number + "." + page.image_url.substring(page.image_url.lastIndexOf('.'));
-        return page.image_path;
+                + "page" + page.number + "." + page.img_url.substring(page.img_url.lastIndexOf('.'));
+        return page.img_path;
+    }
+
+    /**
+     * Возвращает реальный или предполагаемый путь для файла логотипа.
+     * Возвращает new File(""), если не указан LOGO_URL комикса
+     * @param c
+     * @return
+     */
+    public File getLogoFile(Comic c) {
+        if (c.logo_path != null)
+            return new File(c.logo_path);
+
+        if (c.logo_url == null || c.logo_url.length() == 0 || c.logo_url.indexOf('.') == -1)
+            return new File("");
+
+        c.logo_path = logoDir + File.separator + c.getId() + "." + c.logo_url.substring(c.logo_url.lastIndexOf('.'));
+
+        return new File(c.logo_path);
     }
 
     static class ImageDownloadListener implements BasicImageDownloader.OnImageLoaderListener {

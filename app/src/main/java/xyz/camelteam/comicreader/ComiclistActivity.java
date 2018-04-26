@@ -8,6 +8,7 @@ import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.SparseArray;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -18,8 +19,6 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import java.io.File;
-import java.util.HashMap;
-import java.util.Map;
 
 import xyz.camelteam.comicreader.data.ComicDBHelper;
 
@@ -30,6 +29,8 @@ import xyz.camelteam.comicreader.data.ComicDBHelper;
  * Использует кастомный адаптер для заполнения списка
  */
 public class ComiclistActivity extends AppCompatActivity {
+
+    private static ComiclistAdapter adapter;
 
     /**
      * При запуске приложение загружает из БД список доступных комиксов,
@@ -44,43 +45,46 @@ public class ComiclistActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_comiclist);
 
-        new FileWorker(getApplicationContext());
-        new ComicDBHelper(getApplicationContext());
+        new FileWorker(getApplicationContext());    // Создаём объект для взаимодействия с локальным хранилищем
+        new ComicDBHelper(getApplicationContext()); // Создаём объект для взаимодействия с БД
 
-        ListView listView = findViewById(R.id.comic_list);
-        Comic[] comics = ComicDBHelper.singletone.getComiclist();
-        if (comics != null) {
-            DataWorker.updateComicsList();
-            setListViewAdapter(comics, listView);
-        } else {
-            @SuppressLint("StaticFieldLeak")
-            DataWorker.AsyncDownload ad = new DataWorker.AsyncDownload(HttpHelper.getComiclistUrl()) {
-                @Override
-                void customOnPostExecute(String result) {
-                    Comic[] comics = Comic.arrayFromJson(result);
-                    ComicDBHelper.singletone.saveComiclist(comics);
-                    setListViewAdapter(comics, listView);
-                }
-            };
-            ad.execute();
-        }
+        showFromDb();       // Получить из БД и отобразить список комиксов
+        updateFromServer(); // Обновить список комиксов с сервера
     }
 
-    private void setListViewAdapter(Comic[] comics, ListView listView) {
-        Bitmap logo_placeholder = BitmapFactory.decodeResource(getResources(), R.mipmap.logo_placeholder);
+    private void showFromDb() {
+        ListView listView = findViewById(R.id.comic_list); //
 
-        Map<Integer, Bitmap> logos = new HashMap<>();
-        ComiclistAdapter adapter = new ComiclistAdapter(comics, logo_placeholder, logos);
-        new AsyncLogoGetter(comics, adapter, logos).execute();
-        listView.setAdapter(adapter);
+        long time = System.currentTimeMillis();
+        Comic[] comics = ComicDBHelper.singletone.getComiclist(); // Получаем объекты комиксов из БД
+        Log.i("% DB.getComiclist()", "Получено " + comics.length + " объектов за " + (System.currentTimeMillis() - time) + " мс.");
 
-        listView.setOnItemClickListener((parent, view, position, id) -> openComic(comics[position].getId()));
-        listView.setOnLongClickListener(v -> {
-            Comic comic = comics[v.getId()];
-            DataWorker.saveEntirePages(comic);
-            //TODO: Открывать меню с предложением: удалить комикс из памяти, загрузить в память полностью, отметить как избранное
-            return false;
-        });
+        setComiclistAdapter(listView, comics);
+    }
+
+    private void setComiclistAdapter(ListView listView, Comic[] comics) {
+        if (adapter == null)
+            adapter = new ComiclistAdapter(listView);
+        adapter.updateList(comics);
+        adapter.setPlaceholder(BitmapFactory.decodeResource(getResources(), R.mipmap.logo_placeholder));
+    }
+
+    /** Получает с сервера обновлённый список комиксов
+     */
+    @SuppressLint("StaticFieldLeak")
+    private void updateFromServer() {
+        DataWorker.AsyncDownload ad = new DataWorker.AsyncDownload(HttpHelper.getComiclistUrl()) {
+            @Override
+            void customOnPostExecute(String result) {
+                HttpHelper.ComiclistResponse response = JsonHelper.getComiclistResponse(result);
+
+                if (response != null && response.isSuccess()) {
+                    ComicDBHelper.singletone.putComics(response.comics);
+                    adapter.updateList(response.comics);
+                }
+            }
+        };
+        ad.execute();
     }
 
     /** Открывает ComicActivity
@@ -111,11 +115,10 @@ public class ComiclistActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.action_quit: System.exit(0); break;
-            case R.id.action_reload: //TODO
-            case R.id.action_day_night: //TODO
-            case R.id.action_filter: //TODO
+            case R.id.action_reload: break; //TODO
+            case R.id.action_day_night: break; //TODO
+            case R.id.action_filter: break; //TODO
             default:
-
                 Log.d("Not working menu entry!", "Код для этого пункта меню ещё не написан");
         }
         return super.onOptionsItemSelected(item);
@@ -126,14 +129,32 @@ public class ComiclistActivity extends AppCompatActivity {
      * Об использовании здесь: http://developer.alexanderklimov.ru/android/theory/adapters.php
      */
     private class ComiclistAdapter extends BaseAdapter {
-        private final Bitmap logo_placeholder;
+        private Bitmap logo_placeholder;
         Comic[] comics;
-        Map<Integer, Bitmap> logos; // логотипы комиксов
+        SparseArray<Bitmap> logos; // логотипы комиксов
 
-        public ComiclistAdapter(Comic[] comics, Bitmap logo_placeholder, Map<Integer, Bitmap> logos) {
-            this.logo_placeholder = logo_placeholder;
+        public ComiclistAdapter(ListView listView) {
+            listView.setAdapter(this);
+            this.logos = new SparseArray<>();
+
+            listView.setOnItemClickListener((parent, view, position, id) -> openComic(comics[position].getId()));
+            listView.setOnLongClickListener(v -> {
+//                Comic comic = comics[v.getId()];
+//                DataWorker.saveEntirePages(comic);
+//                TODO: Открывать меню с предложением: удалить комикс из памяти, загрузить в память полностью, отметить как избранное
+                return false;
+            });
+        }
+
+        public void updateList(Comic[] comics) {
             this.comics = comics;
+            new AsyncLogoGetter(comics, this, logos).execute();
+            notifyDataSetChanged();
+        }
+
+        public void updateLogos(SparseArray<Bitmap> logos) {
             this.logos = logos;
+            notifyDataSetChanged();
         }
 
         /** Возвращает View для элемента списка комиксов
@@ -144,18 +165,20 @@ public class ComiclistActivity extends AppCompatActivity {
          */
         @Override
         public View getView(int position, View convertView, ViewGroup container) {
+
             convertView = convertView != null ? convertView : getLayoutInflater().inflate(R.layout.comiclist_item, container, false);
 
             Comic c = (Comic) getItem(position);
 
             ImageView icon = convertView.findViewById(R.id.comic_icon);
-            icon.setImageBitmap(logos.containsKey(c.getId()) ? logos.get(c.getId()) : logo_placeholder);
+            icon.setImageBitmap(logos.get(c.getId(), logo_placeholder));
+
 
             String title = "[" + c.lang + "] " + c.title;
             if (title.length() > 33)
                 title = title.substring(0, 31).trim() + "...";
 
-            String desc = c.description;
+            String desc = c.description != null ? c.description : "";
             if (desc.length() > 280)
                 desc = desc.substring(0, 287).trim() + "...";
 //            if (c.pages != null) desc = c.curpage + "/" + c. + "; " + desc;
@@ -180,6 +203,10 @@ public class ComiclistActivity extends AppCompatActivity {
         public long getItemId(int position) {
             return position;
         }
+
+        public void setPlaceholder(Bitmap placeholder) {
+            this.logo_placeholder = placeholder;
+        }
     }
 
     /**
@@ -188,12 +215,13 @@ public class ComiclistActivity extends AppCompatActivity {
     static class AsyncLogoGetter extends AsyncTask {
         Comic[] comics;
         ComiclistAdapter adapter;
-        Map<Integer, Bitmap> logos;
+        SparseArray<Bitmap> logos;
 
-        public AsyncLogoGetter(Comic[] comics, ComiclistAdapter adapter, Map<Integer, Bitmap> logos) {
+        public AsyncLogoGetter(Comic[] comics, ComiclistAdapter adapter, SparseArray<Bitmap> logos) {
             this.comics = comics;
             this.adapter = adapter;
             this.logos = logos;
+            adapter.updateLogos(logos);
         }
 
         @Override
@@ -203,7 +231,10 @@ public class ComiclistActivity extends AppCompatActivity {
 
             // Сначала загружаем из памяти, отображаем их
             for (Comic c : comics) {
-                File logo = new File(c.logo_path);
+                File logo = FileWorker.singleton.getLogoFile(c);
+                if (logo == null)
+                    continue;
+
                 if (logo.exists())
                     logos.put(c.getId(), FileWorker.singleton.getImage(logo));
             }
@@ -211,9 +242,12 @@ public class ComiclistActivity extends AppCompatActivity {
 
             // Только затем пытаемся добыть из инета
             for (Comic c : comics) {
-                File logo = new File(c.logo_path);
-                if (!logo.exists())
-                    logos.put(c.getId(), FileWorker.singleton.getImage(c.logo_url, logo));
+                File logo = FileWorker.singleton.getLogoFile(c);
+                if (!logo.exists()) {
+                    Bitmap bm = FileWorker.singleton.getImage(c.logo_url, logo);
+                    if (bm != null)
+                        logos.put(c.getId(), bm);
+                }
             }
             return null;
         }
