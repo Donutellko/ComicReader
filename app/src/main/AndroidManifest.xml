@@ -24,7 +24,10 @@
         </activity>
 
         <activity android:name=".ComiclistActivity" />
-        <activity android:name=".PageActivity" />
+        <activity
+            android:name=".PageActivity"
+            android:windowSoftInputMode="stateHidden"
+            />
         <activity android:name=".ComicActivity" />
 
     </application>

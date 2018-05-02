@@ -38,13 +38,19 @@ public class FileWorker {
         return BasicImageDownloader.readFromDisk(path);
     }
 
+
     Bitmap getImage(String url, File path) {
-        if (url == null || path == null || path.length() == 0) {
+        if (url == null || path == null || path.getPath().length() == 0) {
             Log.i("Downloading image", "url=\"" + url + "\", path=\"" + path + "\"");
             return null;
         }
+
+        if (path.getParentFile().mkdirs())
+            Log.i("FileWorker", "Directories for image created.");
+
         ImageDownloadListener listener = new ImageDownloadListener(path.getAbsolutePath());
         new BasicImageDownloader(listener).download(url, false);
+
         while (!listener.done);
 
         return getImage(path);
@@ -52,8 +58,6 @@ public class FileWorker {
 
     /**
      * Возвращает загруженный из памяти или интернета логотип дял переданного комикса
-     * @param comic
-     * @return
      */
     Bitmap getLogo(Comic comic) {
         File logo = new File(comic.logo_path);
@@ -63,17 +67,23 @@ public class FileWorker {
             return getImage(comic.logo_url, logo);
     }
 
+    Bitmap getImage(Comic comic, Page p) {
+        if (comic == null) return null;
+
+        File file = new File(getPath(comic, p));
+
+        if (file.exists())
+            return getImage(file);
+        else {
+            return getImage(p.img_url, file);
+        }
+    }
+
     Bitmap getImage(Comic comic, int page) {
         if (comic == null) return null;
         Page p = ComicDBHelper.singletone.getPage(comic.getId(), page);
 
-        String ext = p.img_url.substring(1 + p.img_url.lastIndexOf('.'));
-        File file = new File(stripDir + "/" + comic.getId() + "/" + p.number + '.' + ext);
-
-        if (file.exists())
-            return getImage(file);
-        else
-            return getImage(p.img_url, file);
+        return getImage(comic, p);
     }
 
     /**
@@ -91,7 +101,7 @@ public class FileWorker {
      * Возвращает путь, по которому лежит или будет лежать главное изображение
      * @param comic объект комикса (оттуда берётся его id)
      * @param page страница (из неё забирается путь)
-     * @return
+     * @return строка абсолютного пути
      */
     public String getPath(Comic comic, Page page) {
         if (page.img_path != null) return page.img_path;
@@ -105,8 +115,7 @@ public class FileWorker {
     /**
      * Возвращает реальный или предполагаемый путь для файла логотипа.
      * Возвращает new File(""), если не указан LOGO_URL комикса
-     * @param c
-     * @return
+     * @return объект файла
      */
     public File getLogoFile(Comic c) {
         if (c.logo_path != null)
@@ -130,7 +139,7 @@ public class FileWorker {
 
         @Override
         public void onError(BasicImageDownloader.ImageError error) {
-            //TODO
+            // TODO
             done = true;
         }
 
@@ -144,7 +153,8 @@ public class FileWorker {
             FileOutputStream out = null;
             File file = new File(path);
             if (!file.exists())
-                new File(file.getParent()).mkdirs();
+                if (new File(file.getParent()).mkdirs())
+                    Log.i("FileWorker", "Directories for image created.");
 
             try {
                 out = new FileOutputStream(file.getAbsolutePath());

@@ -275,7 +275,7 @@ public class ComicDBHelper extends SQLiteOpenHelper {
                     null
                     , null,
                     null, null, null);
-            Log.i(LOG_TAG, "No page with number=" + n);
+            // Log.i(LOG_TAG, "No page with number=" + n);
             return cursor.moveToFirst() ? getPage(cursor) : null;
         } catch (SQLiteException e) {
             if (e.getMessage().startsWith("no such table")) {
